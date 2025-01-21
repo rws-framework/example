@@ -102,7 +102,7 @@ function config(): IAppModuleOpts
 export { config };
 ```
 
-**Nest app module for RWS wrapper**
+### Nest app module for RWS wrapper
 
 ***app/app.module.ts***
 
@@ -161,6 +161,21 @@ export class TheAppModule {
     }
   }
 }
+```
+
+### Server entrypoint (**/backend/index.ts**):
+
+```typescript
+import { config } from './config/config'
+import { RWSConfigInjector, RWSBootstrap } from "@rws-framework/server/nest";
+
+@RWSConfigInjector(config())
+class AppBootstrap extends RWSBootstrap {}
+
+import { TheAppModule } from "./app/app.module";
+
+AppBootstrap.run(TheAppModule, { authorization: false, transport: 'websocket' })
+.then(() => {});
 ```
 
 ## Docker work
@@ -557,6 +572,57 @@ export class UserController {
 
 # CLI
 
+## CLI Entrypoint 
+
+**Entrypoint for "rws cli ..." commands must be created in /backend/cli.ts with cli.webpack.config.ts**
+
+cli.ts:
+
+```typescript
+import 'reflect-metadata';
+
+import { RWSCliBootstrap } from "@rws-framework/server";
+import { config, IAppModuleOpts } from './config/config'
+
+import { RWSConfigInjector } from "@rws-framework/server/nest";
+import { AuthService } from './services/AuthService';
+
+import { AdminStartCommand } from './commands/adminadd.command';
+
+@RWSConfigInjector(config())
+class AppCliBootstrap  extends RWSCliBootstrap {}
+
+if (require.main === module) {    
+    AppCliBootstrap.run<IAppModuleOpts>(config, {
+      providers: [
+        AuthService,
+        AdminStartCommand
+      ]
+    }).catch((error) => {
+        console.error('Failed to run CLI:', error);
+        process.exit(1);
+    });
+}
+```
+
+cli.webpack.config.js:
+
+```javascript
+const path = require('path');
+
+const RWSWebpackWrapper = require('@rws-framework/server/cli.rws.webpack.config');
+
+const executionDir = process.cwd();
+
+module.exports = RWSWebpackWrapper({
+  dev: parseInt(process.env.DEV) === 1,  
+  tsConfigPath: executionDir + '/tsconfig.json',
+  entry: `${executionDir}/src/cli.ts`,
+  executionDir: executionDir,  
+  outputDir:  path.resolve(executionDir, 'build'),
+  outputFileName: 'rws.cli.js'
+});
+```
 
 ## Init
 Basic CLI command that executes **generateModelSections()** from conversion script is 

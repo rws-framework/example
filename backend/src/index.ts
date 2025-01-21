@@ -6,7 +6,6 @@ class AppBootstrap extends RWSBootstrap {}
 
 import { TheAppModule } from "./app/app.module";
 
-AppBootstrap.run(TheAppModule, { authorization: false, transport: 'websocket' })
-.then(() => {
-
-});
+AppBootstrap
+    .run(TheAppModule, { authorization: false, transport: 'websocket' })
+    .then(() => {});
