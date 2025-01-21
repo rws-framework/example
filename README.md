@@ -20,6 +20,7 @@
   - [Init](#init)
   - [Custom Command](#custom-command)
 - [Frontend](#frontend)
+- [Links](#links)
 - [Warning](#warning)
 
 ## Environment
@@ -644,6 +645,16 @@ RWSModal.defineComponent();
 
 export { RWSModal };
 ```
+
+# Links
+
+- [RWS server/cli repo](https://github.com/papablack/rws)
+- [RWS frontend client repo](https://github.com/papablack/rws-client)
+- [RWS WS plugin repo](https://github.com/papablack/rws-nest-interconnectors)
+- [RWS Backend AWS services](https://github.com/rws-framework/srv-aws-tools)
+- [RWS Backend AI services & prompt models](https://github.com/rws-framework/ai-tools)
+- [FAST docs](https://fast.design)
+- [NestJS docs](https://docs.nestjs.com/)
 
 # Warning
 
