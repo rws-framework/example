@@ -16,6 +16,7 @@
     - [Relation Decorator](#relation-decorator-many-to-one)
     - [Inverse Relation Decorator](#inverse-relation-decorator-one-to-many)
   - [RWS Model to Prisma Conversion](#rws-model-to-prisma-conversion)
+- [Backend routing](#rws-backend-routing)  
 - [CLI](#cli)
   - [Init](#init)
   - [Custom Command](#custom-command)
@@ -195,6 +196,8 @@ and
 ```
 
 # Models
+
+RWS models are converted to Prisma schemas and are wrapping around generated PrismaClient providing complete typing and better Relation handling + TimeSeries in future minor versions.
 
 ## Models index file
 
@@ -455,6 +458,101 @@ function toConfigCase(modelType: any): string {
 }
 ```
 
+# RWS backend routing
+
+RWS adds custom central file oriented **(CFO)** routing type to Nest.
+
+## Routes
+***backend/src/routing/routes.ts**
+
+```typescript
+import { RWSHTTPRoutingEntry } from '@rws-framework/server/src/routing/routes';
+import { homeRoutes } from './actions/homeActions';
+import { userRoutes } from './actions/userActions';
+
+
+export default [
+    {
+        prefix: '/api',
+        controllerName: 'home',
+        routes: homeRoutes
+    },
+    {
+        prefix: '/api/users',
+        controllerName: 'user',
+        routes: userRoutes
+    },
+
+] as RWSHTTPRoutingEntry[];
+
+//userRoutes from ./actions/userActions.ts
+
+import { IHTTProute } from "@rws-framework/server/src/routing/routes";
+
+export const userRoutes: IHTTProute[] = [                
+    {
+        name: 'user.index',
+        path: '/',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.create',
+        path: '/create',  
+        method: 'POST'                
+    },
+    {
+        name: 'user.createkey',
+        path: '/createkey',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.deletekey',
+        path: '/deletekey/:id',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.delete',
+        path: '/delete/:id',  
+        method: 'GET'                
+    }                               
+]
+```
+## Routing in controllers
+```typescript
+import User from '../models/User';
+
+
+import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
+import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import { Auth, AuthUser } from '../guards/auth.guard';
+
+@RWSController('user')
+export class UserController { 
+    private readonly SALT_ROUNDS = 10;
+  
+    constructor(private authService: AuthService){}
+
+
+    @RWSRoute('user.index')
+    @Auth()
+    async index(@AuthUser() loggedUser: User): Promise<IUserListApiResponse>
+    {
+        const users: IUser[] = await User.findBy();
+        return { data: users }
+    }
+
+    
+    @RWSRoute('user.create')
+    @Auth()
+    async create(        
+      @Body() body: IUserCreateApiPayload
+    ): Promise<IUserCreateApiResponse> {    
+    }
+
+    //(...)
+}
+```
+
 # CLI
 
 
@@ -653,6 +751,7 @@ export { RWSModal };
 - [RWS WS plugin repo](https://github.com/papablack/rws-nest-interconnectors)
 - [RWS Backend AWS services](https://github.com/rws-framework/srv-aws-tools)
 - [RWS Backend AI services & prompt models](https://github.com/rws-framework/ai-tools)
+- [Prisma Node ORM](https://www.prisma.io/docs)
 - [FAST docs](https://fast.design)
 - [NestJS docs](https://docs.nestjs.com/)
 

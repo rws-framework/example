@@ -1,6 +1,5 @@
 import { AppConfigService } from '@rws-framework/server';
-import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
-import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+
 import { IUserCreateApiPayload, IUserCreateApiResponse, IUserDeleteApiResponse, IUserListApiResponse, IUserCreateKeyApiResponse } from './response-types/IUserApiResponse';
 import { Body } from '@nestjs/common';
 import IUser from '../models/interfaces/IUser';
@@ -8,9 +7,12 @@ import User from '../models/User';
 import { Param } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AuthService } from '../services/AuthService';
-import { Auth } from '../guards/auth.guard';
 import ApiKey from '../models/ApiKey';
 import { v4 as uuid } from 'uuid';
+
+import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
+import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import { Auth, AuthUser } from '../guards/auth.guard';
 
 @RWSController('user')
 export class UserController { 
@@ -21,7 +23,7 @@ export class UserController {
 
     @RWSRoute('user.index')
     @Auth()
-    async index(): Promise<IUserListApiResponse>
+    async index(@AuthUser() loggedUser: User): Promise<IUserListApiResponse>
     {
         const users: IUser[] = await User.findBy();
         return { data: users }
