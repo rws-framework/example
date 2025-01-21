@@ -1,0 +1,77 @@
+version: '3.3'
+
+services:
+  mongo_dev_rwsexample:
+    env_file:
+      - ../.env    
+    networks:
+      - main
+    image: mongo:7.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "${MONGODB_PORT:-27017}"]
+    ports:      
+       - "${MONGODB_PORT:-27017}:${MONGODB_PORT:-27017}"
+    volumes:
+      - mongodb_dev_rwsexample:/data/db
+    healthcheck:
+      test: |
+        mongosh --port ${MONGODB_PORT:-27017} --eval "
+          if (!rs.isMaster().ismaster) {
+            rs.initiate({
+              _id: 'rs0',
+              members: [{ _id: 0, host: 'mongo_dev_rwsexample:${MONGODB_PORT:-27017}' }]
+            });
+          }
+        "
+      interval: 10s
+      timeout: 5s    
+      retries: 3      
+
+  node_dev_rwsexample:
+    networks:
+      - main
+    build: node
+    env_file:
+        - ../.env        
+    container_name: node_dev_rwsexample
+    # restart: always
+    ports:
+        - '${WS_PORT}'
+        - '${PORT}'
+    volumes:
+        - ../:/var/www/app
+    labels:
+     # WebSocket Secure Configuration
+      - "traefik.enable=true"
+      # WS Service Configuration
+      - "traefik.http.services.re_ws.loadbalancer.server.port=${WS_PORT}"
+      - "traefik.http.services.re_ws.loadbalancer.server.scheme=http"      
+      - "traefik.http.middlewares.ws-compress.compress=true"
+      
+      # WS Router Configuration
+      - "traefik.http.routers.re_ws_https.rule=Host(`ws.${DOMAIN}`)"
+      - "traefik.http.routers.re_ws_https.entryPoints=websecure"
+      - "traefik.http.routers.re_ws_https.tls=true"
+      - "traefik.http.routers.re_ws_https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.re_ws_https.service=re_ws"
+      - "traefik.http.routers.re_ws_https.middlewares=ws-compress"
+      
+      # AI Service Configuration
+      - "traefik.http.services.re_ai.loadbalancer.server.port=${PORT}"
+      - "traefik.http.services.re_ai.loadbalancer.server.scheme=http"
+
+      # AI Router Configuration
+      - "traefik.http.routers.re_ai_https.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.re_ai_https.entryPoints=websecure"
+      - "traefik.http.routers.re_ai_https.tls=true"
+      - "traefik.http.routers.re_ai_https.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.re_ai_https.service=re_ai"
+      - "traefik.http.routers.re_ai_https.middlewares=ws-compress"
+
+volumes:
+  rwsexample_dev_var_cache: ~
+  #vendor: ~
+  mongodb_dev_rwsexample: ~
+
+networks:
+  main: 
+    external: true

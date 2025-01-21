@@ -1,0 +1,19 @@
+{
+    "name": "rwsexample",
+    "private": true,
+    "version": "1.0.0",
+    "description": "",
+    "scripts": {
+        "postinstall": "cd frontend && yarn build && cd ../backend && yarn rws init && yarn build"
+    },
+    "author": "papablack",
+    "license": "ISC",
+    "workspaces": [
+        "frontend",
+        "backend"
+    ],
+    "dependencies": {
+        "global": "^4.4.0",
+        "typescript": "^5.7.3"
+    }
+}

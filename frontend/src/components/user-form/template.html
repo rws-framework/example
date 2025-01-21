@@ -1,0 +1,49 @@
+<div class="form">
+    <div class="login-container">
+        <sl-card>
+   
+          <div class="inline-flex">
+            <div class="form-group">
+              <sl-input 
+                name="username"
+                type="text"
+                label="Login"
+                required
+                clearable
+                placeholder="Wprowadź login"
+                help-text="Minimum 3 znaki">
+              </sl-input>
+            </div>
+            
+            <div class="form-group">
+              <sl-input
+                name="password"
+                type="password"
+                label="Hasło"
+                required
+                password-toggle
+                placeholder="Wprowadź hasło"
+                help-text="Minimum 6 znaków">
+              </sl-input>
+            </div>
+
+            <div class="form-group">
+              <sl-input
+                name="r_password"
+                type="password"
+                label="Powtórz Hasło"
+                required
+                password-toggle
+                placeholder="Powtórz Hasło"
+                help-text="Minimum 6 znaków">
+              </sl-input>
+            </div>
+            
+            <sl-button @click="${(x, c) => x.sendForm(c.event)}" type="button" variant="primary" class="nolabel">
+              <sl-icon slot="prefix" name="box-arrow-in-right"></sl-icon>
+              ${x => x.submitLabel}
+            </sl-button>
+          </div> 
+        </sl-card>
+      </div>
+</div>

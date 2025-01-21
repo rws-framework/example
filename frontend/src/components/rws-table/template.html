@@ -1,0 +1,22 @@
+<div class="flex-table">
+  <div class="flex-table-header">
+    ${T.repeat(x => x.columns, T.html`<div class="flex-table-cell">${x => x.header}</div>`)}
+  </div>
+  <div class="flex-table-body">
+      ${T.repeat((x, dataContext) => x.data,  T.html`<div class="flex-table-row">
+              ${T.repeat((x, columnContext) => columnContext.parent.columns, T.html`<div class="flex-table-cell">
+                      ${(column, ctx) => {                                            
+                          const value = ctx.parent[column.key];                                                    
+                          return column.formatter ? column.formatter(value) : value;
+                      }}                    
+                  </div>
+              `)}
+              <div class="flex-table-cell">
+                ${T.repeat((x, c) => c.parent.actions, T.html`
+                  <sl-button @click="${ (x, c) => x.handler(c.parent.id) }" variant="${x => x.variant}" >${x => x.label}</sl-button>  
+                `)}                
+              </div>
+          </div>
+      `)}
+  </div>
+</div>

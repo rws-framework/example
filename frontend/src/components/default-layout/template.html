@@ -1,0 +1,18 @@
+<div id="main-container" class="${ x => x.menuOpen ? 'open' : 'closed'}">
+    ${T.when(x => x.isLogged, T.html`<aside>
+        <nav>
+            <site-menu></site-menu>
+        </nav>
+        <div class="user-controls">
+        </nav>
+    </aside>`)}
+    
+    ${T.when(x => x.isLogged, T.html`<main>
+        <header>${x => x.currentPage}</header>
+        <rws-router :currentUrl="${ x => x.currentUrl}" />      
+    </main>`)}
+
+    ${T.when(x => !x.isLogged, T.html`<main>
+        <users-login-form :onLogin="${ x => x.onLogin.bind(x) }"></users-login-form>
+    </main>`)}    
+</div>

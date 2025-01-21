@@ -1,0 +1,52 @@
+################################################################
+#
+# Configuration sample for Traefik v2.
+#
+# 
+#
+################################################################
+
+logLevel: DEBUG
+
+################################################################
+# Global configuration
+################################################################
+global:
+  checkNewVersion: true
+  sendAnonymousUsage: false
+
+################################################################
+# EntryPoints configuration
+################################################################
+
+# EntryPoints definition
+entryPoints:
+  web:
+    address: :80
+
+  websecure:
+    address: :443
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: telegram@silvert.com
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  # Enable Docker configuration backend
+  docker:
+    exposedByDefault: false
+
+api:
+  dashboard: true
+  insecure: true
+
+
+serversTransport:
+    insecureSkipVerify: false
+
+log:
+  level: DEBUG

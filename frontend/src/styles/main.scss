@@ -1,0 +1,12 @@
+/*@save*/
+
+@import '_var_defs';
+@import '~@shoelace-style/shoelace/dist/themes/light.css';
+
+body{
+    background-color: var(--alt_color);
+
+    color: #FFF;
+    font-size: 17px;
+    margin: 0;
+}

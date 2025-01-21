@@ -1,0 +1,44 @@
+<section>
+    <users-create-form submitLabel="Dodaj" :onCreate="${x => x.addToUserList.bind(x)}" ></users-create-form>
+    <div class="list">
+        <rws-table 
+            :actions="${x => [
+                {
+                    key: 'delete',
+                    label: 'Delete',
+                    variant: 'danger',
+                    handler: x.deleteUser.bind(x)
+                },
+                {
+                    key: 'api-keys',
+                    label: 'API keys',
+                    variant: 'secondary',
+                    handler: x.showAPIKeys.bind(x)
+                }
+            ]}"
+            :columns="${x => x.tableColumns}"
+            :data="${x => x.userList}">
+        </rws-table>
+    </div>
+</section>
+
+${T.when(x => x.selectedUser !== null , T.html`
+    <rws-modal :closeModal="${x => x.closeModal.bind(x)}">
+        <h2>API keys for ${x => x.selectedUser.username}</h2>
+        <sl-button @click="${ (x, c) => x.generateAPIKey(x.selectedUser.id) }" variant="secondary" >Create key</sl-button>  
+        <rws-table 
+            :actions="${x => [
+                {
+                    key: 'delete',
+                    label: 'Delete',
+                    variant: 'danger',
+                    handler: x.deleteAPIKey.bind(x)
+                }            
+            ]}"
+            :columns="${x => [
+                { key: 'keyval', header: 'API key' }               
+            ]}"
+            :data="${x => x.selectedUser.apiKeys}">
+        </rws-table>
+    </rws-modal>
+`)}

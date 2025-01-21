@@ -1,0 +1,35 @@
+@import "../../../styles/includes.scss";
+
+
+
+@include default-styles();
+
+#main-container{
+    @include grid-container;
+    @include grid-flex-align-items(space-between);
+    @include center-container();
+
+    margin-top: 15px;
+
+    max-width: 1200px;
+
+    aside {
+        padding-right: 1rem;
+
+        @include grid-column(2);                
+    }
+
+    main {
+        @include grid-column(10);    
+    }
+
+    &.closed {
+        aside{
+            display: none;
+        }
+        main {
+            @include grid-column(12);    
+
+        }
+    }
+}

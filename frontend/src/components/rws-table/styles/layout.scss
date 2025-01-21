@@ -1,0 +1,130 @@
+.flex-table {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    border: 1px solid var(--main-color);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    margin: 1rem 0;
+    color: #2d3748; // Darker base font color
+}
+
+.flex-table-header {
+    display: flex;
+    background: linear-gradient(135deg, #2c5282, #2b6cb0); // Rich blue gradient
+    font-weight: 600;
+    padding: 1rem;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+// Optional subtle pattern overlay for header
+.flex-table-header::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: linear-gradient(45deg, 
+        rgba(255, 255, 255, 0.1) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, 0.1) 50%, 
+        rgba(255, 255, 255, 0.1) 75%, 
+        transparent 75%, 
+        transparent);
+    background-size: 4px 4px;
+    opacity: 0.2;
+}
+
+.flex-table-body {
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+}
+
+.flex-table-row {
+    display: flex;
+    border-bottom: 1px solid rgba(44, 82, 130, 0.15);
+    padding: 0.875rem 1rem;
+    transition: all 0.2s ease;
+}
+
+.flex-table-row:last-child {
+    border-bottom: none;
+}
+
+.flex-table-row:hover {
+    background-color: rgba(44, 82, 130, 0.05);
+}
+
+.flex-table-cell {
+    flex: 1;
+    padding: 0 0.75rem;
+    color: #1a202c; // Darker text color
+    display: flex;
+    align-items: center;
+    line-height: 1.4;
+    font-weight: 500; // Slightly bolder font
+}
+
+.flex-table-header .flex-table-cell {
+    color: #ffffff; // White text for header
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+}
+
+/* Style for the delete button container */
+.flex-table-cell sl-button::part(base) {
+    font-size: 0.875rem;
+    padding: 0.4rem 1rem;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+/* Add animation for row hover */
+.flex-table-row {
+    position: relative;
+}
+
+.flex-table-row::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 0;
+    background: linear-gradient(to bottom, #2c5282, #2b6cb0);
+    transition: height 0.2s ease;
+}
+
+.flex-table-row:hover::after {
+    height: 100%;
+}
+
+/* Zebra striping for better readability */
+.flex-table-row:nth-child(even) {
+    background-color: rgba(44, 82, 130, 0.02);
+}
+
+/* Style for empty state or loading state */
+.flex-table:empty {
+    min-height: 200px;
+    background-color: #f7fafc;
+}
+
+/* Optional: Add responsive font sizes */
+@media (max-width: 768px) {
+    .flex-table {
+        font-size: 0.9rem;
+    }
+    
+    .flex-table-header .flex-table-cell {
+        font-size: 0.85rem;
+    }
+}
