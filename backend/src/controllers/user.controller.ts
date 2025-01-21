@@ -3,12 +3,14 @@ import { AppConfigService } from '@rws-framework/server';
 import { IUserCreateApiPayload, IUserCreateApiResponse, IUserDeleteApiResponse, IUserListApiResponse, IUserCreateKeyApiResponse } from './response-types/IUserApiResponse';
 import { Body } from '@nestjs/common';
 import IUser from '../models/interfaces/IUser';
-import User from '../models/User';
 import { Param } from '@nestjs/common';
 import { createHash } from 'crypto';
 import { AuthService } from '../services/AuthService';
 import ApiKey from '../models/ApiKey';
 import { v4 as uuid } from 'uuid';
+
+import User from '../models/User';
+
 
 import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
 import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';

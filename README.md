@@ -104,6 +104,8 @@ export { config };
 
 **Nest app module for RWS wrapper**
 
+***app/app.module.ts***
+
 The RWS wrapper gets the module from config ***module*** field.
 
 ```typescript
