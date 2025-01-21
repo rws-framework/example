@@ -254,7 +254,11 @@ class User extends RWSModel<User> implements IUser {
     @RWSTrackType(Date)
     updated_at: Date;
 
-    @InverseRelation(() => ApiKey, () => User) //Every relation and inverse relation decorator uses arrow function model passing
+    /**
+     * Every relation and inverse relation decorator 
+     * uses arrow function model passing
+     **/
+    @InverseRelation(() => ApiKey, () => User)
     apiKeys: IApiKey[];
 
     static _collection = 'user';
