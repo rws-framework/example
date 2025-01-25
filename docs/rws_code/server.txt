@@ -1,0 +1,4569 @@
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/amplify/auth/resource.ts:
+79
+import { defineAuth } from '@aws-amplify/backend';
+
+/**
+ * Define and configure your auth resource
+ * When used alongside data, it is automatically configured as an auth provider for data
+ * @see https://docs.amplify.aws/gen2/build-a-backend/auth
+ */
+export const auth = defineAuth({
+  loginWith: {
+    email: true,
+    // add social providers
+    // externalProviders: {
+    /**
+     * first, create your secrets using `amplify sandbox secret`
+     * then, import `secret` from `@aws-amplify/backend`
+     * @see https://docs.amplify.aws/gen2/deploy-and-host/sandbox-environments/features/#setting-secrets
+     */
+    // loginWithAmazon: {
+    //   clientId: secret('LOGINWITHAMAZON_CLIENT_ID'),
+    //   clientSecret: secret('LOGINWITHAMAZON_CLIENT_SECRET'),
+    // }
+    // configure callback and logout URLs
+    // callbackUrls: ['http://localhost:3000'],
+    // logoutUrls: ['http://localhost:3000'],
+    // },
+  },
+  /**
+   * enable multifactor authentication
+   * @see https://docs.amplify.aws/gen2/build-a-backend/auth/manage-mfa
+   */
+  // multifactor: {
+  //   mode: 'OPTIONAL',
+  //   sms: {
+  //     smsMessage: (code) => `Your verification code is ${code}`,
+  //   },
+  // },
+  userAttributes: {
+    /** request additional attributes for your app's users */
+    // profilePicture: {
+    //   mutable: true,
+    //   required: false,
+    // },
+  },
+});
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/amplify/backend.ts:
+73
+import { defineBackend } from '@aws-amplify/backend';
+import { auth } from './auth/resource';
+import { data } from './data/resource';
+
+defineBackend({
+  auth,
+  data,
+});
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/amplify/data/resource.ts:
+79
+import { type ClientSchema, a, defineData } from '@aws-amplify/backend';
+
+/*== STEP 1 ===============================================================
+The section below creates a Todo database table with a "content" field. Try
+adding a new "isDone" field as a boolean. The authorization rules below
+specify that owners, authenticated via your Auth resource can "create",
+"read", "update", and "delete" their own records. Public users,
+authenticated via an API key, can only "read" records.
+=========================================================================*/
+const schema = a.schema({
+  Todo: a
+    .model({
+      content: a.string(),
+    })
+    .authorization([a.allow.owner(), a.allow.public().to(['read'])]),
+});
+
+export type Schema = ClientSchema<typeof schema>;
+
+export const data = defineData({
+  schema,
+  authorizationModes: {
+    defaultAuthorizationMode: 'apiKey',
+    // API Key is used for a.allow.public() rules
+    apiKeyAuthorizationMode: {
+      expiresInDays: 30,
+    },
+  },
+});
+
+/*== STEP 2 ===============================================================
+Go to your frontend source code. From your client-side code, generate a
+Data client to make CRUDL requests to your table. (THIS SNIPPET WILL ONLY
+WORK IN THE FRONTEND CODE FILE.)
+
+Using JavaScript or Next.js React Server Components, Middleware, Server 
+Actions or Pages Router? Review how to generate Data clients for those use
+cases: https://docs.amplify.aws/gen2/build-a-backend/data/connect-to-API/
+=========================================================================*/
+
+/*
+"use client"
+import { generateClient } from "aws-amplify/data";
+import { type Schema } from "@/amplify/data/resource";
+
+const client = generateClient<Schema>() // use this Data client for CRUDL requests
+*/
+
+/*== STEP 3 ===============================================================
+Fetch records from the database and use them in your frontend component.
+(THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
+=========================================================================*/
+
+/* For example, in a React component, you can use this snippet in your
+  function's RETURN statement */
+// const { data: todos } = client.models.Todo.list()
+
+// return <ul>{todos.map(todo => <li key={todo.id}>{todo.content}</li>)}</ul>
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/exec/src/application/cli.module.ts:
+89
+
+
+import IAppConfig from '../../../src/types/IAppConfig';
+import { DynamicModule,  Module} from '@nestjs/common';
+
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { InitCommand } from '../../../src/commands/init.command';
+import { ConsoleService, DBService, ProcessService, TraversalService, UtilsService } from '../../../src';
+import { RWSModuleType } from '../../../src/types/IRWSModule';
+import { DecoratorExplorerService } from '../../../src/services/DecoratorExplorerService';
+import { DiscoveryService } from '@nestjs/core';
+import { MD5Service } from '../../../src/services/MD5Service';
+
+export interface ParsedOpt {
+  key: string,
+  value: string | boolean,
+  fullString: string  
+}
+export interface ParsedOptions {
+  [key: string]: ParsedOpt;
+}
+
+export interface NestModuleInputData {
+    providers: any[]
+}
+
+export interface NestModuleData extends NestModuleInputData {
+    module: RWSModuleType,
+    exports: any[],
+    imports: any[]
+}
+
+export interface StaticCLIModule {
+    forRoot(nestModuleData: NestModuleData, config: IAppConfig): Promise<NestModuleData>
+}
+
+export type NestCliModuleType = Promise<DynamicModule>
+
+@Module({})
+export class CLIModule {
+    static async forRoot(nestModuleData: NestModuleInputData = {
+        providers: []
+    }, config: IAppConfig): NestCliModuleType {      
+        const baseProviders = [
+            ProcessService,      
+            DBService,
+            ConfigService,
+            UtilsService,
+            TraversalService,
+            ConsoleService,            
+            InitCommand,
+            DiscoveryService,
+            DecoratorExplorerService,
+            MD5Service        
+        ];
+        
+        return {
+          module: CLIModule,
+          imports: [      
+            ConfigModule.forRoot({
+              isGlobal: true,
+              load: [ () => config ]
+            }),
+          ],
+          providers: [
+            ...baseProviders, ...nestModuleData.providers
+        ],
+          exports: [...baseProviders, ...nestModuleData.providers]
+        };
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/exec/src/rws.ts:
+70
+
+import 'reflect-metadata';
+
+import { BootstrapRegistry } from '../../nest/decorators/RWSConfigInjector';
+import IAppConfig from '../../src/types/IAppConfig';
+import { INestApplication, Type } from '@nestjs/common';
+import { CLIModule, NestModuleInputData, NestModuleData, ParsedOptions, ParsedOpt } from './application/cli.module';
+import { NestFactory } from '@nestjs/core';
+
+import chalk from 'chalk';
+import { DecoratorExplorerService, CMDProvider } from '../../src/services/DecoratorExplorerService';
+import { UtilsService } from '../../src/services/UtilsService';
+import { MD5Service } from '../../src/services/MD5Service';
+import fs from 'fs';
+
+// console.log = (any) => {};
+
+interface CLIServices { discoveryService: DecoratorExplorerService, utilsService: UtilsService, md5Service: MD5Service }
+
+export class RWSCliBootstrap {
+    protected static _instance: RWSCliBootstrap;
+    protected $app: INestApplication;    
+    constructor(protected nestModuleData: NestModuleInputData, protected module: Type<any> = null){}
+
+    static async run<T extends IAppConfig>(       
+        config: () => T, 
+        nestModuleData: NestModuleInputData, 
+        customModule: Type<any> = null
+      ): Promise<void> {
+        const commandName: string = process.argv[2];     
+        try {          
+          if (!this._instance) {
+            this._instance = new RWSCliBootstrap(nestModuleData, customModule);
+          }
+          return this._instance.runCli(commandName, config());
+        } catch (error) {
+          console.error('Error in RWSCliBootstrap.run:', error);
+          throw error;
+        }
+      }
+    
+
+    protected static get instance(): RWSCliBootstrap {
+        return this._instance;
+    }
+
+    private async makeModule(): Promise<void> {
+        try {                   
+          const config = BootstrapRegistry.getConfig();
+          
+          this.module = await (CLIModule as any).forRoot(
+            this.nestModuleData, 
+            config
+          );
+
+          console.log(chalk.blue('CLI Module created successfully'));
+        } catch (error) {
+          console.error('Error in makeModule:', error);
+          throw error;
+        }
+    }
+
+    protected getServices(): CLIServices
+    {
+      const discoveryService = this.$app.get(DecoratorExplorerService);
+      const utilsService = this.$app.get(UtilsService);
+      const md5Service = this.$app.get(MD5Service);
+
+      return {
+        discoveryService, utilsService, md5Service
+      }
+    }
+
+    async runCli(commandName:string, config: IAppConfig): Promise<void> {
+        try {
+          
+            if (!BootstrapRegistry.isInitialized()) {
+                BootstrapRegistry.setConfig(config);
+            }
+
+            await this.makeModule();        
+            this.$app = await NestFactory.create(this.module);
+
+            await this.$app.init();
+
+            console.log(chalk.bgGreen('$APP is loaded.')); 
+          
+            const { discoveryService, utilsService, md5Service } : CLIServices = this.getServices();              
+
+            const cmdProviders = discoveryService.getCommandProviders();
+            const cmdProvider: CMDProvider = cmdProviders[Object.keys(cmdProviders).find((item) => item === commandName)];
+
+            const inputParams = process.argv.splice(3);
+            const ignoredInputs: string[] = [];            
+            
+            const parsedOptions: ParsedOptions = inputParams.reduce<ParsedOptions>((acc: ParsedOptions, currentValue: string) => {
+              if (currentValue.startsWith('--') || currentValue.startsWith('-')) {
+                let [key, value] = currentValue.replace(/^-+/, '').split('=');
+                ignoredInputs.push(currentValue); 
+                
+                let theValue: string | boolean = value;
+
+                if(!value){
+                  theValue = true;
+                }
+
+                return {
+                  ...acc,
+                  [key]: {
+                    key: key,
+                    value: theValue,
+                    fullString: currentValue
+                  }
+                };
+              }
+              return acc;
+            }, {});
+
+            const passedParams = inputParams.filter(item => !ignoredInputs.includes(item));           
+
+            if(cmdProvider){     
+              cmdProvider.instance.run(passedParams, parsedOptions);
+            } else {
+              console.log(chalk.yellowBright(`Command "${commandName}" does not exist. Maybe you are looking for:`));
+
+              for(const pk of Object.keys(cmdProviders)){
+                const provider: CMDProvider = cmdProviders[pk];
+                console.log(`"${utilsService.detectPackageManager() === 'yarn' ? 'yarn' : 'npx'} rws ${provider.metadata.options.name}": ${provider.metadata.options.description}`);
+              }
+            }            
+
+            const cached: string | null = utilsService.getRWSVar('cli/paths');
+            const cliPaths: string[] = cached ? cached.split('\n') : []; 
+            const fileContents: string[] = [];
+
+            for(const cliFile of cliPaths){
+              fileContents.push(fs.readFileSync(cliFile, 'utf-8'));
+            }
+
+            utilsService.setRWSVar('cli/checksum', md5Service.md5(fileContents.join('\n')));             
+        } catch (error) {
+            console.error('Error in CLI bootstrap:', error);
+            process.exit(1);
+        }
+    }
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/bootstrap.ts:
+72
+import { serverInit } from "../src/index";
+import { ServerOpts } from "../src/types/ServerTypes";
+import { BootstrapRegistry } from "./decorators/RWSConfigInjector";
+
+
+export abstract class RWSBootstrap {
+    private static _instance: RWSBootstrap = null;
+
+    static async run(nestModule: any, opts: ServerOpts): Promise<void>
+    {
+        if (!this._instance) {            
+            this._instance = new (this as any)();
+        }
+
+        return this._instance.runServer(nestModule, opts);
+    }
+
+    async runServer(nestModule: any,         
+        opts: ServerOpts = {}
+    ): Promise<void> {
+        await serverInit(nestModule, () => BootstrapRegistry.getConfig(), opts);
+    }
+
+    protected static get instance(): RWSBootstrap {
+        return this._instance;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/decorators/InjectServices.ts:
+88
+import { DBService } from '../../src/services/DBService';
+import { ConfigService } from '@nestjs/config';
+
+let globalDBService: DBService;
+let globalConfigService: ConfigService;
+
+export function setGlobalServices(dbService: DBService, configService: ConfigService) {
+  globalDBService = dbService;
+  globalConfigService = configService;
+}
+
+export function InjectServices() {
+  return function (target: any) {
+    
+    return new Proxy(target, {
+      get(target, prop, receiver) {
+        if (prop === 'dbService') {
+          return globalDBService;
+        }
+        if (prop === 'configService') {
+          return globalConfigService;
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+      set(target, prop, value, receiver) {
+        if (prop === 'dbService') {
+          globalDBService = value;
+          return true;
+        }
+        if (prop === 'configService') {
+          globalConfigService = value;
+          return true;
+        }
+        return Reflect.set(target, prop, value, receiver);
+      }
+    });
+  };
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/decorators/RWSConfigInjector.ts:
+91
+import { Console } from "console";
+
+export class BootstrapRegistry {
+    private static config: any = null;
+    private static initialized = false;
+
+    static setConfig(config: any) {
+        if (this.initialized) {
+            throw new Error('Bootstrap configuration has already been initialized');
+        }
+        this.config = config;
+        this.initialized = true;
+    }
+
+    static getConfig() {
+        return this.config;
+    }
+
+    static isInitialized() {
+        return this.initialized;
+    }
+}
+
+export function RWSConfigInjector(config: any) {
+    return function (target: any) {
+        BootstrapRegistry.setConfig(config);
+        
+        // Store original main function
+        const originalMain = target.prototype.main;
+
+        // Override main function
+        target.prototype.main = async function (...args: any[]) {
+            console.log('RWSBootstrap: Initializing application with config...');
+            
+            // Call original main with stored config
+            return await originalMain.apply(this, args);
+        };
+
+        return target;
+    };
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/decorators/RWSController.ts:
+87
+import { Controller } from '@nestjs/common';
+import { RWSHTTPRoutingEntry } from '../../src/routing/routes';
+import { BootstrapRegistry } from './RWSConfigInjector';
+
+export function RWSController(name: string) {
+    if(!BootstrapRegistry.getConfig()){
+        throw new Error('No config');
+    }
+    
+    const routes = BootstrapRegistry.getConfig().http_routes as RWSHTTPRoutingEntry[];
+    
+    // Find the matching route configuration
+    const routeConfig = routes.find(entry => 
+        'controllerName' in entry && entry.controllerName === name
+    );
+
+    if (!routeConfig || !('prefix' in routeConfig)) {
+        throw new Error(`No route configuration found for controller: ${name}`);
+    }
+
+    // Apply the NestJS Controller decorator with the prefix from the route configuration
+    return Controller(routeConfig.prefix);
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/decorators/RWSRoute.ts:
+82
+import { applyDecorators, Get, Post, Put, Delete } from '@nestjs/common';
+import 'reflect-metadata';
+import { IHTTProute, IPrefixedHTTProutes, RWSHTTPRoutingEntry } from '../../src/routing/routes';
+import { BootstrapRegistry } from './RWSConfigInjector';
+
+export interface IRouteParams {
+    public?: boolean;
+    responseType?: string;
+};
+
+function isPrefixedRoutes(entry: RWSHTTPRoutingEntry): entry is IPrefixedHTTProutes {
+    return 'prefix' in entry && 'routes' in entry;
+}
+
+export function RWSRoute(routeName: string, options: IRouteParams = {
+    public: false,
+    responseType: 'json'
+}) {
+    if(!BootstrapRegistry.getConfig()){
+        return (): null => null;
+    }
+    
+    return applyDecorators(
+        function methodDecorator(target: Object, propertyKey: string | symbol, descriptor: PropertyDescriptor): void {
+            const existingMetadata = Reflect.getMetadata('routes', target.constructor) || {};            
+            const routes = BootstrapRegistry.getConfig().http_routes as RWSHTTPRoutingEntry[];
+            // Find the matching route configuration
+            let routeConfig: IHTTProute | undefined;
+            for (const entry of routes) {
+                if (isPrefixedRoutes(entry)) {
+                    const route = entry.routes.find(r => r.name === routeName);
+                    if (route) {
+                        routeConfig = route;
+                        break;
+                    }
+                } else if (entry.name === routeName) {
+                    routeConfig = entry;
+                    break;
+                }
+            }
+
+            if (!routeConfig) {
+                throw new Error(`No route configuration found for route name: ${routeName}`);
+            }
+
+            // Apply the appropriate HTTP method decorator based on the route configuration
+            const methodDecorator = (() => {
+                switch (routeConfig.method.toUpperCase()) {
+                    case 'GET':
+                        return Get(routeConfig.path);
+                    case 'POST':
+                        return Post(routeConfig.path);
+                    case 'PUT':
+                        return Put(routeConfig.path);
+                    case 'DELETE':
+                        return Delete(routeConfig.path);
+                    default:
+                        throw new Error(`Unsupported HTTP method: ${routeConfig.method}`);
+                }
+            })();
+
+            // Apply the HTTP method decorator
+            methodDecorator(target, propertyKey, descriptor);
+            
+            existingMetadata[propertyKey] = {
+                annotationType: 'Route',
+                metadata: {
+                    name: routeName,
+                    params: {
+                        responseType: options.responseType || 'json',
+                        options: {
+                            public: options?.public ?? routeConfig.options?.public ?? false
+                        }
+                    }
+                }
+            };
+
+            Reflect.defineMetadata('routes', existingMetadata, target.constructor);
+        }
+    );
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/decorators/RWSTSLocator.ts:
+86
+export function RWSTSLocator() {
+    return (target: any) => {
+        // Store the stack trace when the decorator is called (during TS compilation)
+        const stack = new Error().stack;
+        // Parse the stack to find the caller file (which will be the TS file)
+        const callerFile = stack
+            ?.split('\n')[1]
+            ?.match(/(?:at\s+)(?:.*\s+\()?([^:]+):/)?.[1];        
+        if (callerFile) {
+            Reflect.defineMetadata('source:file', callerFile, target);
+        }
+    };
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/nest/index.ts:
+68
+import common, { 
+    Injectable, 
+    Get, Post, Delete, Put,
+    Module  
+} from '@nestjs/common';
+import { Command, Positional } from 'nestjs-command';
+import core, { NestFactory } from '@nestjs/core';
+import { Controller } from '../src/controller';
+import { RWSRoute } from './decorators/RWSRoute';
+import { RWSConfigInjector, BootstrapRegistry } from './decorators/RWSConfigInjector';
+import { RWSBootstrap } from './bootstrap';
+const NestRoute = {
+    Get, Post, Delete, Put
+}
+
+const CLI = { Command, Positional }
+
+export {    
+    common, core, 
+    Controller, 
+    NestRoute,
+    CLI,
+    Injectable,
+    NestFactory, Module,
+    RWSRoute,
+    RWSConfigInjector,
+    BootstrapRegistry,
+    RWSBootstrap
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/commands/_command.ts:
+79
+import 'reflect-metadata'; 
+import { ConsoleService } from '../services/ConsoleService';
+import { UtilsService } from '../services/UtilsService';
+import { ConfigService } from '@nestjs/config';
+import { ProcessService } from '../services/ProcessService';
+import { DBService } from '../services/DBService';
+import RWSModel from '../models/_model';
+import path from 'path';
+import { Injectable } from '@nestjs/common';
+import { ParsedOptions } from '../../exec/src/application/cli.module';
+import fs from 'fs';
+import chalk from 'chalk';
+import { rwsPath } from '@rws-framework/console';
+
+const COMMAND_DECORATOR_META_KEY = 'rws:command';
+
+@Injectable()
+export abstract class RWSBaseCommand{
+    protected packageRootDir: string;
+    protected executionDir: string;  
+    
+    constructor(
+      protected readonly utilsService: UtilsService,
+      protected readonly consoleService: ConsoleService,
+      protected readonly configService: ConfigService,
+      protected readonly processService: ProcessService,    
+      protected readonly dbService: DBService  
+    ) {    
+      this.executionDir = process.cwd();
+      this.packageRootDir = this.utilsService.findRootWorkspacePath(__dirname);
+      
+
+      RWSModel.dbService = dbService;
+      RWSModel.configService = configService;
+    }    
+
+    abstract run(
+      passedParams: string[],
+      options: ParsedOptions,
+    ): Promise<void>;
+}
+
+export interface IRWSCliCmdOpts {
+  name: string,
+  description?: string
+}
+
+export type CmdMetadataType = { options: IRWSCliCmdOpts, _IS_CMD: true } | null | undefined
+
+const RWSCommand = (cmdOpts: IRWSCliCmdOpts) => {
+  const packageJson: {
+    name: string
+  } = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf-8'));
+
+  return (target: any, prop: string = null) => {
+    const metadata: CmdMetadataType = { options: cmdOpts, _IS_CMD: true };
+    Reflect.defineMetadata(COMMAND_DECORATOR_META_KEY, metadata, target);
+    
+    const stack = new Error().stack;
+    const stackLines = stack.split('\n');
+    
+    const commandLines = stackLines.filter(line => 
+      line.indexOf('_command.ts') === -1
+    );      
+
+    commandLines.forEach(line => {
+      if (line.includes(`webpack:/${packageJson.name}/`)) {
+        const webpackPath = line.split(`webpack:/${packageJson.name}/`)[1];
+        if (webpackPath && webpackPath.includes('.ts')) {
+          let commandPath = webpackPath.split('.ts')[0] + '.ts';
+          let resolvedPath = path.resolve(commandPath);
+
+          if(!fs.existsSync(resolvedPath)){      
+            commandPath = path.resolve(rwsPath.findRootWorkspacePath(), commandPath);
+            resolvedPath = path.resolve(commandPath);            
+          }         
+
+          if(fs.existsSync(resolvedPath)){
+            const cached: string | null = UtilsService.getRWSVar('cli/paths');
+            const cliPaths: string[] = cached ? cached.split('\n') : []; 
+
+            let newCliPaths: string[] = cliPaths.length ? cliPaths : [];
+
+            if(!newCliPaths.includes(resolvedPath)){
+              UtilsService.setRWSVar(`cli/paths`, [...newCliPaths, resolvedPath].join('\n'));
+            }             
+          }                    
+        }
+      }
+    });
+  }
+}
+
+
+export { RWSCommand, COMMAND_DECORATOR_META_KEY }
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/commands/init.command.ts:
+83
+import { Injectable } from '@nestjs/common';
+import { setupRWS, setupPrisma } from '../install';
+
+import {RWSBaseCommand, RWSCommand} from './_command';
+import { ParsedOptions } from '../../exec/src/application/cli.module';
+
+
+@Injectable()
+@RWSCommand({name: 'init', description: 'Systems init command.'})
+export class InitCommand extends RWSBaseCommand {
+  async run(
+    passedParams: string[],
+    options?: ParsedOptions
+  ): Promise<void> {
+    this.consoleService.log(this.consoleService.color().green('[RWS]') + ' starting systems...');
+
+    try {
+      const cfgData = this.configService;
+      if (!cfgData) {
+        this.consoleService.error('[RWS] No configuration found!');
+        return;
+      }
+
+      try {
+        await setupRWS();
+        await setupPrisma(false, {
+          dbService: this.dbService,
+          processService: this.processService,
+          configService: this.configService
+        });
+        this.consoleService.log(this.consoleService.color().green('[RWS]') + ' systems initialized.');
+      } catch (error) {
+        this.consoleService.error('Error while initiating RWS server installation:', error);
+        throw error;
+      }
+    } catch (e: unknown) {
+      this.consoleService.log(this.consoleService.color().red('[RWS]') + ' configuration error...');
+      throw e;
+    }
+  }
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/controller/_controller.ts:
+84
+export default class RWSController {
+
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/controller/_decorator.ts:
+83
+import { Controller as NestController, ControllerOptions as NestControllerOptions } from '@nestjs/common';
+
+
+export type RWSControllerOptions = {}
+
+export function RWSControllerDecorator(
+    prefixOrOptions?: string | string[] | RWSControllerOptions | NestControllerOptions,
+  ): ClassDecorator {
+    const ControllerDecorator: ClassDecorator = NestController(prefixOrOptions as NestControllerOptions);
+    return ControllerDecorator;
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/controller/index.ts:
+78
+import { RWSControllerDecorator as Controller } from "./_decorator"
+import RWSController from "./_controller"
+
+export {
+    Controller,
+    RWSController
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/errors/Error403.ts:
+77
+import RWSError from './_error';
+
+export default class Error404 extends RWSError{
+    name = '403 not authorized.';
+
+    constructor(baseError: Error | unknown, resourcePath: string, params: any | null = null){
+        super(403, baseError, params);
+
+        this.message = `RWS resource "$${resourcePath}" was not autorized for current user.`;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/errors/Error404.ts:
+77
+import RWSError from './_error';
+
+export default class Error404 extends RWSError{
+    name = '404 Resource not found';
+
+    constructor(baseError: Error | unknown, resourcePath: string, params: any = null){
+        super(404, baseError, params);
+
+        this.message = `Resource "${resourcePath}" was not found`;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/errors/Error500.ts:
+77
+import RWSError from './_error';
+
+export default class Error500 extends RWSError {
+    name = '500 internal server error';
+
+    constructor(baseError: Error | unknown, resourcePath?: string, params: any = null){
+        super(500, baseError, params);
+
+        if(!resourcePath){
+            resourcePath = __filename;
+        }
+
+        this.message = `RWS resource "$${resourcePath}" has internal error`;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/errors/_error.ts:
+75
+export default class RWSError{
+    protected baseError: Error | any;
+    protected name: string;
+    protected message: string;
+    protected code: number;
+    protected stack?: string = null;
+
+    constructor(code: number, baseError: Error | any = null, params: any = null){        
+        if(!baseError){
+            baseError = new Error('Error code ' + code);
+        }
+
+        this.code = code;
+        if(typeof baseError === 'string'){            
+            this.baseError = new Error(baseError as string);            
+        }else {
+            this.baseError = baseError;
+        }        
+
+        if(this.baseError.stack){
+            this.stack = baseError.stack;
+        }
+    }
+
+    printFullError(): void
+    {
+        console.error('[RWS Error]');
+        console.log(`[${this.name}] ${this.message}`);
+        console.log('Stack:', this.stack);
+        console.error('[/RWS Error]');
+    }
+
+    getMessage(): string
+    {
+        return this.message;
+    }
+
+    getCode(): number
+    {
+        return this.code;
+    }  
+    
+    getStackTraceString(): string
+    {
+        return this.stack;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/errors/index.ts:
+74
+import Error404 from './Error404';
+import Error403 from './Error403';
+import Error500 from './Error500';
+import RWSError from './_error';
+
+export {
+    Error403, Error404, Error500, RWSError
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/gateways/_gateway.ts:
+79
+import {ITheGateway} from '../types/ITheGateway';
+import { Server, Socket } from 'socket.io';
+
+import {
+    WebSocketGateway,
+    WebSocketServer,
+    ConnectedSocket,
+  } from '@nestjs/websockets';
+
+import { RWSFillService } from '../index';
+
+import { Injectable } from '../../nest'; 
+import {UtilsService, ConsoleService, AuthService } from '../index';
+import { ConfigService } from '@nestjs/config';
+
+interface JSONMessage{
+    method: string;
+    msg: any;
+    user_id: string;
+}
+
+interface BaseResponse<T> {
+    data?: T;
+    success: boolean;
+    error?: Error;
+}
+
+interface ErrorResponse extends BaseResponse<any> {
+    error: Error;
+    success: false;
+}
+
+interface SocketWsResponse<T> extends BaseResponse<T> {
+    method: string;
+}
+
+@WebSocketGateway()
+@Injectable()
+export abstract class RWSGateway implements ITheGateway{
+    @WebSocketServer() server: Server;
+    public utilsService: UtilsService;
+    public authService: AuthService;
+    public consoleService: ConsoleService;
+
+    constructor(
+        public appConfigService: ConfigService,
+        rwsFillService: RWSFillService
+    ){
+        rwsFillService.fillBaseServices(this);
+    }
+
+    onModuleInit() {
+        const port = this.appConfigService.get<number>('ws_port');
+        if(port){
+            this.server.listen(port);
+            console.log(`WebSocket server is running on port ${port}`);
+        }        
+    }
+    
+
+    socket: Socket<any, any, any, any>;
+    getJson(input: string): any
+    {
+        return JSON.parse(input);
+    
+    }
+
+    sendJson(input: object): string
+    {
+        return JSON.stringify(input);
+    }
+
+    
+    handleConnection(@ConnectedSocket() socket: Socket): void {      
+        console.log('Client connected:', socket.id);
+    }
+    
+    handleDisconnect(@ConnectedSocket() socket: Socket): void {
+        console.log('Client disconnected:', socket.id);
+    }
+
+    emitMessage<T>(method: string, socket: Socket, data?: T): void
+    {
+        const payload: SocketWsResponse<T> = { success: true, method, data: null };
+
+        if(data){
+            payload.data = data;
+        }
+
+        socket.emit(method, this.sendJson(payload));              
+    }
+
+    getData<T>(input: string): T
+    {
+        return this.getJson(input).msg as T
+    }
+
+    throwError(method: string, socket: Socket, error: Error | any): void
+    {        
+        console.log(JSON.parse(JSON.stringify(error, Object.getOwnPropertyNames(error))));
+
+        socket.emit(method, this.sendJson({
+            error: JSON.parse(JSON.stringify(error, Object.getOwnPropertyNames(error))),
+            success: false
+        }));
+    }
+}
+
+export {JSONMessage, BaseResponse as BaseWsResponse, ErrorResponse as ErrorWsResponse};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/helpers/FieldsHelper.ts:
+82
+export class FieldsHelper {
+    static getAllClassFields(target: any): string[] {
+        // Get instance properties
+        const instanceFields = Object.getOwnPropertyNames(target.prototype);
+        
+        // Get static properties
+        const staticFields = Object.getOwnPropertyNames(target);
+        
+        // Get decorated properties using Reflect metadata if available
+        const decoratedFields = Reflect.getMetadataKeys(target.prototype) || [];
+        
+        // Combine all fields and remove duplicates and methods
+        const allFields = new Set([
+            ...instanceFields,
+            ...staticFields,
+            ...decoratedFields
+        ]);
+    
+        // Filter out constructor and methods
+        return Array.from(allFields).filter(field => {
+            // Remove constructor
+            if (field === 'constructor') return false;
+            
+            // Remove methods
+            const descriptor = Object.getOwnPropertyDescriptor(target.prototype, field);
+            if (descriptor && typeof descriptor.value === 'function') return false;
+            
+            return true;
+        });
+    };
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/helpers/InjectServices.ts:
+84
+import { Type } from '@nestjs/common';
+import { ModuleRef } from '@nestjs/core';
+type Constructor<T = any> = new (...args: any[]) => T;
+
+export function InjectServices(services: Type<any>[], staticServices: Type<any>[] = []): ClassDecorator {
+    return function (target: Function) {
+        const original = target;
+
+        function getPropKey(serviceName: string){
+            let propKeyArray: string[] = serviceName.split('');
+            propKeyArray[0] = propKeyArray[0].toLowerCase();
+            return propKeyArray.join('');
+        }
+
+        const construct = (constructor: Constructor & {[key: string]: any}, args: any[]) => {
+            const c: any = function (...args: any[]) {
+               
+                staticServices.forEach(service => {                
+                    constructor[getPropKey(service.name)] = moduleRef.get(service, { strict: false });
+                });
+
+                const instance = new constructor(...args);
+                const moduleRef = args[0] as ModuleRef;
+
+                services.forEach(service => {
+                    constructor[getPropKey(service.name)] = moduleRef.get(service, { strict: false });
+                });
+
+                return instance;
+            };
+            c.prototype = constructor.prototype;
+            return new c(...args);
+        };
+
+        const f: any = function (...args: any[]) {
+            return construct(original as Constructor, args);
+        };
+
+        f.prototype = original.prototype;
+
+        return f;
+    };
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/helpers/ServerBuilder.ts:
+83
+// import { Server as ServerBase, Socket } from 'socket.io';
+// import HTTPS from 'https';
+// import cors, {CorsOptions} from 'cors';
+// import HTTP, { ServerResponse } from 'http';
+// import ITheSocket from '../types/ITheSocket';
+// import { AuthService, _DEFAULTS_USER_LIST_MANAGER } from '../services/AuthService';
+// import fs from 'fs';
+// import expressServer, { Request, Response, Express } from 'express';
+// import { AxiosRequestHeaders } from 'axios';
+// import { IHTTProute, IPrefixedHTTProutes, RWSHTTPRoutingEntry } from '../routing/routes';
+// import { ConsoleService } from '../services/ConsoleService';
+// import { UtilsService } from '../services/UtilsService';
+// import path from 'path';
+// import bodyParser from 'body-parser';
+// import Error404 from '../errors/Error404';
+// import RWSError from '../errors/_error';
+// import compression from 'compression';
+// import IAuthUser from '../types/IAuthUser';
+// import { MD5Service } from '../services/MD5Service';
+// import IDbUser from '../types/IDbUser';
+
+// import fileUpload from 'express-fileupload';
+
+// import {
+//     WsRoutes,
+//     UserTokens,
+//     JWTUsers,
+//     CookieType,
+//     IInitOpts,
+//     RWSServer,
+//     ServerStarter,
+//     RWSServerPair,
+//     ServerControlSet
+// } from '../types/ServerTypes';
+// import { AppConfigService } from 'src/services/AppConfigService';
+
+// const __HTTP_REQ_HISTORY_LIMIT = 50;
+
+// const MINUTE = 1000 * 60;
+
+// const _DEFAULT_SERVER_OPTS: IInitOpts = {
+//     ssl_enabled: null,
+//     port_http: null,
+//     port_ws: null
+// };
+
+// type ServerBuilderServices = {
+//     authService: AuthService,
+//     consoleService: ConsoleService,
+//     utilsService: UtilsService,
+//     md5Service: MD5Service,
+//     configService: AppConfigService, 
+// }
+
+// function wsLog(error: Error, msg: any, wsClientId: string, something: boolean = false){
+//     console.log(`[RWS Websocket (wsId: ${wsClientId})]`, msg);
+// }
+
+// class ServerBuilder extends ServerBase {    
+//     private static http_server: RWSServerPair;
+//     private static ws_server: RWSServerPair;
+//     private server_app: Express; 
+//     private options: IInitOpts; 
+//     private srv: RWSServer;
+//     private tokens: UserTokens = {};
+//     private users: JWTUsers = {};
+//     private corsOptions: CorsOptions;
+
+//     constructor(webServer: RWSServer, expressApp: Express, opts: IInitOpts, private services: ServerBuilderServices){ 
+//         const _DOMAIN: string =  opts.cors_domain || opts.domain;
+
+//         const WEBSOCKET_CORS = {
+//             origin: _DOMAIN,
+//             methods: ['GET', 'POST']
+//         };
+
+//         const cors_headers: string[] = ['Content-Type', 'x-csrf-token','Accept', 'Authorization', 'x-junctionapi-version'];
+
+//         super(webServer, {
+//             cors: WEBSOCKET_CORS,
+//             transports: [opts.transport || 'websocket'],
+//             pingTimeout: 5*MINUTE
+//         }); 
+        
+
+//         this.server_app = expressApp;
+//         this.srv = webServer;
+//         this.options = opts;
+
+//         const corsHeadersSettings = {
+//             'Access-Control-Allow-Origin': _DOMAIN, // Replace with your frontend domain
+//             'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+//             'Access-Control-Allow-Headers': cors_headers.join(', '),
+//             'Access-Control-Allow-Credentials': 'true'
+//         };
+
+//         this.srv.on('options', (req: Request, res: Response) => {
+//             res.writeHead(200, corsHeadersSettings);
+//             res.end();
+//         });
+
+//         this.server_app.use((req, res, next) => {
+
+//             Object.keys(corsHeadersSettings).forEach((key: string) => {
+//                 res.setHeader(key, (corsHeadersSettings as any)[key]);
+//             });
+
+//             next();
+//         });
+
+//         this.corsOptions = {
+//             origin: _DOMAIN, // Replace with the appropriate origins or set it to '*'
+//             methods: ['GET', 'POST', 'OPTIONS'],
+//             allowedHeaders: cors_headers
+//         };
+
+//         const corsMiddleware = cors(this.corsOptions);                 
+
+//         this.use(async (socket, next) => {
+//             const request: HTTP.IncomingMessage = socket.request;
+//             const response: ServerResponse = new ServerResponse(request);
+//             corsMiddleware(request, response, next);            
+//         });        
+
+//         this.server_app.options('*', cors(this.corsOptions)); // Enable pre-flight for all routes                
+//     }
+
+//     public static async initializeApp<PassedUser extends IDbUser>(opts: IInitOpts = _DEFAULT_SERVER_OPTS, UserConstructor: new () => PassedUser = null, services: ServerBuilderServices): Promise<ServerControlSet>
+//     {                
+//         opts = Object.assign(_DEFAULT_SERVER_OPTS, opts);
+//         const isSSL = opts.ssl_enabled !== null || typeof opts.ssl_enabled === 'undefined' ? opts.ssl_enabled : services.configService.get('features')?.ssl;
+
+//         if (!ServerBuilder.http_server) { 
+//             const [baseHttpServer, expressHttpServer] = await ServerBuilder.createServerInstance(opts, services);
+           
+//             const http_instance = new ServerBuilder(baseHttpServer, expressHttpServer, opts, services);
+//             const httpPort = opts.port_http || services.configService.get('port');
+            
+//             ServerBuilder.http_server = { instance: await http_instance.configureHTTPServer<PassedUser>(UserConstructor), starter: http_instance.createServerStarter(httpPort, () => {
+//                 services.consoleService.log(services.consoleService.color().green('Request/response server' + ` is working on port ${httpPort} using HTTP${isSSL ? 'S' : ''} protocol`));
+//             })};  
+//         }
+
+//         if (!ServerBuilder.ws_server) {
+//             const [baseWsServer, expressWsServer] = await ServerBuilder.createServerInstance(opts, services);
+
+//             const ws_instance = new ServerBuilder(baseWsServer, expressWsServer, opts, services);
+//             const wsPort = opts.port_ws || services.configService.get('ws_port');
+
+//             ServerBuilder.ws_server = { instance: await ws_instance.configureWSServer<PassedUser>(UserConstructor), starter: ws_instance.createServerStarter(wsPort, () => {
+//                 services.consoleService.log(services.consoleService.color().green('Websocket server' + ` is working on port ${wsPort}. SSL is ${isSSL ? 'enabled' : 'disabled'}.`));
+//             })};  
+//         }
+        
+//         const pacakgeDir = services.utilsService.findRootWorkspacePath(process.cwd());   
+//         const rwsDir = `${pacakgeDir}/node_modules/.rws`;
+
+//         if(!fs.existsSync(rwsDir)){
+//             fs.mkdirSync(rwsDir);
+//         }          
+        
+//         return {
+//             websocket: this.ws_server,
+//             http: this.http_server,
+//         };
+//     }
+
+//     disconnectClient = (clientSocket: Socket) => {
+//         clientSocket.disconnect(true);
+//     };
+    
+//     setJWTToken(socketId: string, token: string): void {
+//         if(token.indexOf('Bearer') > -1){
+//             this.tokens[socketId] = token.split(' ')[1];
+//         }else{
+//             this.tokens[socketId] = token;
+//         }
+//     }    
+
+//     public webServer(): RWSServer
+//     { 
+//         return this.srv; 
+//     }  
+
+//     static async createServerInstance(opts: IInitOpts, services: any): Promise<[RWSServer, Express]>
+//     {
+//         const app = expressServer();       
+//         const isSSL = services.configService.get('features')?.ssl;
+//         const options: {key?: Buffer, cert?: Buffer} = {};
+
+//         if(isSSL){
+//             const sslCert = services.configService.get('ssl_cert');
+//             const sslKey = services.configService.get('ssl_key');  
+
+//             if( !sslKey || !sslCert || !fs.existsSync(sslCert) || !fs.existsSync(sslKey)){
+//                 throw new Error('SSL keys set in config do not exist.');
+//             }
+
+//             options.key = fs.readFileSync(sslKey);
+//             options.cert = fs.readFileSync(sslCert);       
+//         }       
+
+//         const webServer = isSSL ? HTTPS.createServer(options, app) : HTTP.createServer(app);            
+
+//         return [webServer, app];
+//     }
+
+//     createServerStarter(port: number, injected: () => void = () => {}): ServerStarter
+//     {
+//         return (async (callback: () => void = () => {}) => {            
+//             this.webServer().listen(port, () => {
+//                 injected();
+//                 callback();
+//             });
+//         }).bind(this);
+//     }
+
+//     public async configureHTTPServer<PassedUser extends IDbUser>(UserConstructor:  new (params: any) => PassedUser = null): Promise<ServerBuilder>
+//     {
+//         if(this.options.authorization){
+//             this.server_app.use(async (req: Request, res: Response, next: () => void) => {
+//                 const reqId: string = this.services.md5Service.md5(req.url);
+//                 let theUser: IAuthUser = null;
+//                 let theToken: string = null;
+
+//                 const setUser = (reqId: string, user: IAuthUser) => {
+//                     theUser = user;
+
+//                     if(UserConstructor){                   
+//                         this.users[reqId] = new UserConstructor(theUser);
+//                     }else{
+//                         this.users[reqId] = theUser;
+//                     }             
+//                 };
+
+//                 const setToken = (noneId: string, token: string) => {
+//                     theToken = token;
+
+//                     this.tokens[reqId] = theToken;
+//                 };
+
+//                 if(Object.keys(this.users).length > __HTTP_REQ_HISTORY_LIMIT){
+//                     this.users = {};
+//                     this.tokens = {};
+//                 }
+
+//                 const authPassed: boolean | null = await this.services.authService.authenticate(reqId, req.headers.authorization, {
+//                     ..._DEFAULTS_USER_LIST_MANAGER,
+//                     set: setUser,
+//                     setToken,
+//                     getList: () => this.users,
+//                     get: (reqId: string) => this.users[reqId],     
+//                     getTokenList: () => this.tokens,
+//                     getToken: (reqId: string) => this.tokens[reqId]
+//                 });
+
+//                 const authHeader: string = req.headers.authorization;                        
+        
+//                 if(authPassed === null || authHeader === undefined){         
+//                     this.services.consoleService.warn('RWS AUTH WARNING', this.services.consoleService.color().blue(`[${reqId}]`), 'XHR token is not passed');       
+//                     res.writeHead(400, 'Bad request: No token passed');
+//                     res.end();
+                
+//                     return;
+//                 }   
+
+//                 if(authPassed === false){                            
+//                     this.services.consoleService.error('RWS AUTH ERROR', this.services.consoleService.color().blue(`[${reqId}]`), 'XHR token unauthorized');
+//                     res.writeHead(403, 'Token unauthorized');
+//                     res.end();
+                
+//                     return;
+//                 }   
+            
+//                 next();
+//             });
+    
+
+//             this.use(async (socket, next ) => {
+//                 if(this.options.onAuthorize){
+//                     await this.options.onAuthorize<PassedUser>(this.users[socket.id] as any, 'ws');
+//                 }
+//                 next();
+//             });
+//         }
+
+
+//         this.server_app.use(fileUpload());
+      
+//         // app.use(express.json({ limit: '200mb' }));
+//         this.server_app.use(bodyParser.json({ limit: '200mb' }));    
+        
+//         if(this.services.configService.get('features')?.routing_enabled){
+//             if(this.options.pub_dir){
+//                 this.server_app.use(expressServer.static(this.options.pub_dir));
+//             }     
+    
+//             this.server_app.set('view engine', 'ejs');           
+//         }
+
+//         this.use(compression);
+        
+
+//         return this;
+//     }
+
+//     public async configureWSServer<PassedUser extends IDbUser>(UserConstructor:  new (params: any) => PassedUser = null): Promise<ServerBuilder>
+//     { 
+//         if(!this.services.configService.get('features')?.ws_enabled){          
+//             console.error('[RWS] Websocket server is disabled in configuration');
+//             return this;
+//         }
+
+//         this.sockets.on('connection', async (socket: Socket) => {            
+//             const socketId: string = socket.id;
+
+//             wsLog(new Error(), 'Client connection recieved', socketId);
+
+//             socket.on('disconnect',  async (reason: string) => {                    
+//                 wsLog(new Error(), `Client disconnected due to ${reason}`, socketId);
+                
+//                 if (reason === 'transport error') {
+//                     wsLog(new Error(), 'Transport error', socketId, true);
+//                 }                    
+//             });
+
+//             socket.on('error', async (error) => {
+                
+//                 wsLog(new Error(), error, socketId, true);                    
+//             });
+            
+
+//             socket.on('__PING__', async () => {
+//                 wsLog(new Error(), 'Recieved ping... Emmiting response callback.', socketId);
+//                 socket.emit('__PONG__', '__PONG__');
+//             });                
+
+//             Object.keys(this.options.wsRoutes).forEach((eventName) => {                
+//                 const SocketClass = this.options.wsRoutes[eventName];    
+                
+//                 new SocketClass(ServerBuilder.ws_server).handleConnection(socket, eventName);
+//             });
+//         });
+
+//         if(this.options.authorization){
+        
+//             this.use(async (socket, next ) => {                
+//                 const request: HTTP.IncomingMessage = socket.request;
+//                 const response: ServerResponse = new ServerResponse(request);
+
+//                 const token = this.tokens[socket.id] || socket.handshake.auth.token;                
+
+//                 const passedAuth: boolean | null = await this.services.authService.authenticate(socket.id, token, {
+//                     getList: () => this.users,
+//                     get: (socketId: string) => this.users[socketId],
+//                     set: (socketId: string, user: IAuthUser) => {
+//                         if(UserConstructor){
+//                             this.users[socketId] = new UserConstructor(user);
+//                         }else{
+//                             this.users[socketId] = user;
+//                         }
+                       
+//                     },
+//                     getTokenList: () => this.tokens,
+//                     getToken: (socketId: string) => this.tokens[socketId],
+//                     setToken: (socketId: string, token: string) => {
+//                         this.tokens[socketId] = token;
+//                     },
+//                     disconnectClient: () => {
+//                         this.disconnectClient(socket);
+//                     }
+//                 });
+
+//                 if(passedAuth === false){                    
+//                     this.services.consoleService.error('RWS AUTH ERROR', this.services.consoleService.color().blue(`[${socket.id}]`), 'Websockets token unauthorized');
+//                     response.writeHead(403, 'Token unauthorized');
+//                     response.end();  
+//                 }else if(passedAuth === null){                                 
+//                     this.services.consoleService.warn('RWS AUTH WARNING', this.services.consoleService.color().blue(`[${socket.id}]`), 'Websockets token is not passed');
+//                     response.writeHead(400, 'Bad request: No token');
+//                     response.end(); 
+//                 }else{                    
+//                     next();
+//                 }
+//             });
+//         }
+
+//         this.use(async (socket, next ) => {
+//             if(this.options.onAuthorize){
+//                 await this.options.onAuthorize<PassedUser>(this.users[socket.id] as any, 'http');
+//             }
+//             next();
+//         });
+
+//         return this;
+//     }
+
+//     static on404(req: Request, res: Response): void
+//     {
+//         const error =  new Error404(new Error('Sorry, the page you\'re looking for doesn\'t exist.'), req.url);
+
+//         error.printFullError();    
+        
+//         let response = error.getMessage();
+
+//         if(req.headers.accept.indexOf('text/html') > -1){
+//             const htmlTemplate = this.processErrorTemplate(error);
+
+//             response = htmlTemplate;
+//         }   
+      
+//         res.status(404).send(response);
+//     }
+
+//     static processErrorTemplate(error: RWSError): string
+//     {
+//         return fs.readFileSync( path.resolve(__dirname, '..', '..', '..', 'html') + '/error.html', 'utf-8')
+//             .replace('{{error_number}}', error.getCode().toString())
+//             .replace('{{error_message}}', error.getMessage())
+//             .replace('{{error_stack_trace}}',  error.getStackTraceString() !== '' ? `<h4>Stack trace:</h4><pre>${error.getStackTraceString()}</pre>` : '')
+//         ;
+//     }
+
+//     static cookies = {                
+//         getCookies: async(headers: AxiosRequestHeaders): Promise<CookieType> =>
+//         {
+//             return new Promise((resolve) => {
+//                 resolve(headers.cookie.split(';').map((cookieEntry: string) => {
+//                     const [key, value] = cookieEntry.split('=');
+        
+//                     return {
+//                         [key]: value
+//                     };
+//                 }));
+//             }); 
+//         },        
+//         getCookie: async (headers: AxiosRequestHeaders, key: string): Promise<string | null> => 
+//         {
+//             const cookiesBin: CookieType = await ServerBuilder.cookies.getCookies(headers);
+        
+//             if(!cookiesBin[key]){
+//                 return null;
+//             }
+        
+//             return cookiesBin[key];
+//         }        
+//     };
+
+//     public getOptions(): IInitOpts
+//     {
+//         return this.options;
+//     }
+
+//     public getCorsOptions(): CorsOptions
+//     {
+//         return this.corsOptions;
+//     }
+// }
+
+// export { 
+//     ServerBuilder, 
+//     WsRoutes, 
+//     IHTTProute, 
+//     IInitOpts, 
+//     ITheSocket, 
+//     IPrefixedHTTProutes, 
+//     RWSHTTPRoutingEntry, 
+//     RWSServer, 
+//     RWSServerPair, 
+//     ServerControlSet, 
+//     ServerStarter as RWSServerStarter 
+// };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/index.ts:
+67
+import 'source-map-support/register';
+import { Socket } from 'socket.io';
+
+
+// import { RWSHTTPRoutingEntry, IPrefixedHTTProutes, IHTTProute, WsRoutes, ITheSocket } from './helpers/ServerBuilder';
+
+import runNest from './runNest';
+import {setupPrisma, setupRWS} from './install';
+
+import ITimeSeries from './models/types/ITimeSeries';
+import TimeSeriesModel from './models/types/TimeSeriesModel';
+
+// import ServerService, { ServerControlSet, RWSServerPair, RWSServerStarter } from './helpers/ServerBuilder';
+import { RWSCliBootstrap } from '../exec/src/rws';
+import { CLIModule } from '../exec/src/application/cli.module';
+import { DBService } from './services/DBService';
+import { AuthService } from './services/AuthService';
+import { ConsoleService } from './services/ConsoleService';
+import { ProcessService }from './services/ProcessService';
+import { MD5Service } from './services/MD5Service';
+import { TraversalService } from './services/TraversalService';
+import { UtilsService }  from './services/UtilsService';
+
+import { InverseRelation, InverseTimeSeries, Relation, TrackType as RWSTrackType} from './models/decorators/index';
+
+import IAppConfig from './types/IAppConfig';
+import { ConfigService as AppConfigService} from '@nestjs/config';
+import IAuthUser from './types/IAuthUser';
+import IDbUser from './types/IDbUser';
+
+import { RWSFillService } from './services/RWSFillService';
+
+const RWSannotations = {
+    modelAnnotations: { InverseRelation, InverseTimeSeries, Relation, RWSTrackType }};
+
+import {RWSCommand} from './commands/_command';
+import { RWSGateway, JSONMessage, BaseWsResponse, ErrorWsResponse } from './gateways/_gateway';
+import { RWSController } from './controller';
+
+import * as RWSErrorCodes from './errors';
+import * as NEST from '../nest';
+import Model, { IModel } from './models/_model';
+import { ZipService } from './services/ZipService';
+import { RWSModule, } from './runNest';
+import { InjectServices } from './helpers/InjectServices';
+
+export {    
+    RWSCommand,
+    RWSFillService,
+    AppConfigService,
+    RWSModule,
+    runNest as serverInit,
+    setupRWS,
+    setupPrisma,         
+    RWSGateway,    
+    Model as RWSModel,
+    IModel as IRWSModel,
+
+    // ServerService as RWSServer,    
+    DBService,        
+    AuthService,        
+    ConsoleService,             
+    MD5Service,
+    ZipService,    
+    TraversalService,    
+    UtilsService,     
+    ProcessService,
+
+    TimeSeriesModel,
+
+    ITimeSeries,
+    IAppConfig,
+    
+    IAuthUser,
+    IDbUser,
+    
+    Socket,          
+    RWSannotations,
+    JSONMessage as RWSJSONMessage,         
+    RWSErrorCodes,
+    BaseWsResponse, ErrorWsResponse,
+    RWSTrackType,
+
+    NEST,
+    RWSController,
+    InjectServices,
+    CLIModule, RWSCliBootstrap
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/install.ts:
+69
+import IAppConfig from './types/IAppConfig';
+import Model, { IMetaOpts, OpModelType } from './models/_model';
+import fs from 'fs';
+import path from 'path';
+import 'reflect-metadata';
+
+import {DBService} from './services/DBService';
+import {ProcessService} from './services/ProcessService';
+import {ConsoleService} from './services/ConsoleService';
+import {UtilsService} from './services/UtilsService';
+
+import TimeSeriesModel from './models/types/TimeSeriesModel';
+import { rwsPath } from '@rws-framework/console';
+import { ConfigService } from '@nestjs/config';
+import chalk from 'chalk';
+
+const { log } = console;
+
+
+
+const executionDir = path.resolve(process.cwd());
+const workspaceRoot = rwsPath.findRootWorkspacePath();
+const moduleDir = path.resolve(workspaceRoot, 'node_modules', '@rws-framework', 'server');
+const _RWS_INSTALED_TXT: string = 'OK';
+
+async function generateModelSections<T extends Model<T>>(model: OpModelType<T>): Promise<string> {
+    let section = '';
+    const modelMetadatas: Record<string, {annotationType: string, metadata: any}> = await Model.getModelAnnotations(model);    
+
+    const modelName: string = (model as any)._collection;
+    
+    section += `model ${modelName} {\n`;
+    section += '\tid String @map("_id") @id @default(auto()) @db.ObjectId\n';
+ 
+    for (const key in modelMetadatas) {
+        const modelMetadata: IMetaOpts = modelMetadatas[key].metadata;            
+        const requiredString = modelMetadata.required ? '' : '?';  
+        const annotationType: string = modelMetadatas[key].annotationType;
+
+        if(key === 'id'){
+            continue;
+        }
+        
+        if(annotationType === 'Relation'){
+            const relatedModel = modelMetadata.relatedTo as OpModelType<T>;        
+            // Handle direct relation (many-to-one or one-to-one)
+            section += `\t${key} ${relatedModel._collection}${requiredString} @relation("${modelName}_${relatedModel._collection}", fields: [${modelMetadata.relationField}], references: [${modelMetadata.relatedToField}], onDelete: Cascade)\n`;      
+            section += `\t${modelMetadata.relationField} String${requiredString} @db.ObjectId\n`;
+        } else if (annotationType === 'InverseRelation'){        
+            // Handle inverse relation (one-to-many or one-to-one)
+            section += `\t${key} ${modelMetadata.inversionModel._collection}[] @relation("${modelMetadata.inversionModel._collection}_${modelName}")\n`;
+        } else if (annotationType === 'InverseTimeSeries'){        
+            section += `\t${key} String[] @db.ObjectId\n`;      
+        } else if (annotationType === 'TrackType'){        
+            const tags: string[] = modelMetadata.tags.map((item: string) => '@' + item);          
+            section += `\t${key} ${toConfigCase(modelMetadata)}${requiredString} ${tags.join(' ')}\n`;
+        }
+    }
+    
+    section += '}\n';
+    return section;
+}
+
+function toConfigCase(modelType: any): string {
+    const type = modelType.type;
+    const input = type.name;  
+
+    if(input == 'Number'){
+        return 'Int';
+    }
+
+    if(input == 'Object'){
+        return 'Json';
+    }
+
+    if(input == 'Date'){
+        return 'DateTime';
+    }
+
+
+    const firstChar = input.charAt(0).toUpperCase();
+    const restOfString = input.slice(1);
+    return firstChar + restOfString;
+}
+
+async function setupPrisma(leaveFile = false, services: {
+    dbService: DBService,    
+    processService: ProcessService,
+    configService: ConfigService
+} = { dbService: null, processService: null, configService: null})
+{       
+    const dbUrl = await services.configService.get('mongo_url');      
+    const dbType = 'mongodb';
+
+    let template: string = `generator client {\n
+    provider = "prisma-client-js"\n
+  }\n\n`;
+
+    template += `\ndatasource db {\n
+    provider = "${dbType}"\n
+    url = env("DATABASE_URL")\n    
+  }\n\n`;
+
+    const usermodels = await services.configService.get('user_models');       
+    for (const model of usermodels){ 
+        const modelSection = await generateModelSections(model);
+
+        template += '\n\n' + modelSection;  
+
+        log('RWS SCHEMA BUILD', chalk.blue('Building DB Model'), model.name);
+    
+        if(Model.isSubclass(model, TimeSeriesModel)){      
+     
+            services.dbService.collectionExists(model._collection).then((exists: boolean) => {
+                if (exists){
+                    return;
+                }
+
+                log(chalk.green('[RWS Init]') + ` creating TimeSeries type collection from ${model} model`);
+
+                services.dbService.createTimeSeriesCollection(model._collection);    
+            });
+        }
+    }
+
+    const schemaDir = path.join(moduleDir, 'prisma');
+    const schemaPath = path.join(schemaDir, 'schema.prisma');
+
+    if(!fs.existsSync(schemaDir)){
+        fs.mkdirSync(schemaDir);
+    }
+
+    if(fs.existsSync(schemaPath)){
+        fs.unlinkSync(schemaPath);
+    }
+
+    fs.writeFileSync(schemaPath, template);  
+    process.env.DB_URL = dbUrl;
+    const endPrisma = 'npx prisma';
+    await ProcessService.runShellCommand(`${endPrisma} generate --schema=${schemaPath}`, process.cwd());  
+
+    // leaveFile = true;
+    log(chalk.green('[RWS Init]') + ' prisma schema generated from ', schemaPath);
+
+    UtilsService.setRWSVar('_rws_installed', _RWS_INSTALED_TXT);
+
+    if(!leaveFile){
+        fs.unlinkSync(schemaPath);
+    }    
+
+    return;
+}
+
+async function setupRWS(generateProjectFiles: boolean = true): Promise<void>
+{
+    const packageRootDir: string = rwsPath.findRootWorkspacePath(process.cwd());
+    const endPrismaFilePath = packageRootDir + 'node_modules/.prisma/client/schema.prisma';
+
+    if(fs.existsSync(endPrismaFilePath)){
+        fs.unlinkSync(endPrismaFilePath);
+    }                
+
+ 
+    let workspaced = false;
+    
+    if(workspaceRoot !== executionDir){
+        workspaced = true;
+    }
+    
+    if(generateProjectFiles){              
+        if(workspaced){
+            if(!fs.existsSync(`${workspaceRoot}/.eslintrc.json`)){
+                const rcjs: string = fs.readFileSync(`${moduleDir}/.setup/_base.eslintrc.json`, 'utf-8');
+                fs.writeFileSync(`${workspaceRoot}/.eslintrc.json`, rcjs.replace('{{backend_dir}}', executionDir));
+                log(chalk.green('RWS CLI'), 'Installed eslint base workspace config file.');
+            }
+        
+            if(!fs.existsSync(`${executionDir}/.eslintrc.json`)){
+                const rcjs: string = fs.readFileSync(`${moduleDir}/.setup/_base.eslintrc.json`, 'utf-8');
+                fs.writeFileSync(`${executionDir}/.eslintrc.json`, rcjs.replace('{{backend_dir}}', executionDir));                            
+                log(chalk.green('RWS CLI'), 'Installed eslint backend workspace config file.');
+            }    
+        }else{
+            if(!fs.existsSync(`${executionDir}/.eslintrc.json`)){
+                fs.copyFileSync(`${moduleDir}/.eslintrc.json`, `${executionDir}/.eslintrc.json`);
+                log(chalk.green('RWS CLI'), 'Installed eslint config file.');
+            }  
+        } 
+    
+        if(!fs.existsSync(`${executionDir}/tsconfig.json`)){
+            fs.copyFileSync(`${moduleDir}/.setup/tsconfig.json`, `${executionDir}/tsconfig.json`);
+            log(chalk.green('RWS CLI'), 'Installed tsconfig.');
+        }
+    }
+    return;
+}
+
+const nodeModulesDir = path.resolve(`${workspaceRoot}`, 'node_modules');
+
+const isInstalled = {
+    rws: (): boolean => UtilsService.getRWSVar('_rws_installed') === _RWS_INSTALED_TXT,
+    prisma: (): boolean => fs.existsSync(path.resolve(`${nodeModulesDir}`, '.prisma', 'client', 'schema.prisma'))
+}
+
+const runShellCommand = ProcessService.runShellCommand;
+
+export {setupPrisma, setupRWS, isInstalled, runShellCommand, _RWS_INSTALED_TXT};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/_model.ts:
+75
+import { Error500, RWSError } from '../errors';
+import { Inject, Injectable, ExecutionContext, createParamDecorator } from '@nestjs/common';
+import {DBService} from '../services/DBService';
+import { AppConfigService } from '../index';
+
+import TrackType, {IMetaOpts} from './decorators/TrackType';
+import { InjectServices } from '../../nest/decorators/InjectServices';
+import { ConfigService } from '@nestjs/config';
+import { FieldsHelper } from '../helpers/FieldsHelper';
+import { FindByType } from './types/FindParams';
+
+interface IModel{
+    [key: string]: any;
+    id: string | null;
+    save: () => void;
+    getCollection: () => string | null;
+    configService?: AppConfigService;
+    dbService?: DBService;
+}
+
+type RelationBindType = {
+    connect: { id: string }
+};
+
+type RelOneMetaType<T extends Model<T>> = {[key: string]: {required: boolean, key?: string, model: OpModelType<T>, hydrationField: string, foreignKey: string}};
+type RelManyMetaType<T extends Model<T>> = {[key: string]: {key: string, inversionModel: OpModelType<T>, foreignKey: string}};
+
+export interface OpModelType<ChildClass> {
+    new(data?: any | null): ChildClass;
+    name: string 
+    _collection: string;
+    _RELATIONS: {[key: string]: boolean}
+    _CUT_KEYS: string[]
+    loadModels: () => Model<any>[];
+    checkForInclusionWithThrow: (className: string) => void;
+    checkForInclusion: (className: string) => boolean;
+    configService?: AppConfigService;
+    dbService?: DBService;
+    findOneBy<T extends Model<T>>(
+        this: OpModelType<T>,
+        findParams: FindByType
+    ): Promise<T | null>;
+    find<T extends Model<T>>(
+        this: OpModelType<T>,
+        id: string,        
+        findParams?: Omit<FindByType, 'conditions'>
+    ): Promise<T | null>;
+    findBy<T extends Model<T>>(
+        this: OpModelType<T>,    
+        findParams: FindByType
+    ): Promise<T[]>;
+    delete<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>,
+        conditions: any
+    ): Promise<void>
+    getRelationOneMeta(model: any, classFields: string[]): Promise<RelOneMetaType<Model<any>>>;
+    getRelationManyMeta(model: any, classFields: string[]): Promise<RelManyMetaType<Model<any>>>;
+}
+
+@InjectServices()
+class Model<ChildClass> implements IModel{
+    configService: AppConfigService
+    dbService: DBService
+
+    static configService: AppConfigService
+    static dbService: DBService
+
+    [key: string]: any;
+    @TrackType(String)
+    id: string;
+    static _collection: string = null;
+    static _RELATIONS = {};
+    static _BANNED_KEYS = ['_collection'];
+
+    static _CUT_KEYS: string[] = [];
+
+    constructor(data: any) {    
+        if(!this.getCollection()){
+            throw new Error('Model must have a collection defined');
+        
+        }
+
+        this.dbService = Model.dbService;
+        this.configService = Model.configService;
+
+        if(!data){
+            return;    
+        }          
+  
+        if(!this.hasTimeSeries()){
+            this._fill(data);
+        }else{
+            throw new Error('Time Series not supported in synchronous constructor. Use `await Model.create(data)` static method to instantiate this model.');
+        }
+    }    
+    
+    checkForInclusionWithThrow(): void
+    {
+        this.checkForInclusionWithThrow()
+    }
+
+    static checkForInclusionWithThrow(this: OpModelType<any>, checkModelType: string): void
+    {
+        if(!this.checkForInclusion(this.name)){
+            throw new Error500(new Error('Model undefined: ' + this.name), this.name);
+        }
+    }
+
+    checkForInclusion(): boolean    
+    {                
+        return this.checkForInclusion();        
+    }
+
+    static checkForInclusion(this: OpModelType<any>, checkModelType: string): boolean
+    {        
+        return this.loadModels().find((definedModel: Model<any>) => {
+            return definedModel.name === checkModelType
+        }) !== undefined
+    }
+
+    protected _fill(data: any): Model<ChildClass>{
+        for (const key in data) {
+            if (data.hasOwnProperty(key)) {   
+              
+                const meta = Reflect.getMetadata(`InverseTimeSeries:${key}`, (this as any).constructor.prototype);
+          
+                if(meta){
+                    data[key] = {
+                        create: data[key]
+                    };
+                }else{
+                    this[key] = data[key];
+                }                          
+            }
+        }       
+        
+        return this;
+    }
+
+    protected hasRelation(key: string): boolean
+    {
+        return !!this[key] && this[key] instanceof Model;
+    }
+
+    protected bindRelation(key: string, relatedModel: Model<any>): RelationBindType
+    {        
+        return {
+            connect: {
+                id: relatedModel.id
+            }
+        };
+    }
+
+    public async _asyncFill(data: any, fullDataMode = false, allowRelations = true): Promise<ChildClass> {
+        const collections_to_models: {[key: string]: any} = {};           
+        const timeSeriesIds = this.getTimeSeriesModelFields();
+    
+        const classFields = FieldsHelper.getAllClassFields(this.constructor);        
+    
+        // Get both relation metadata types asynchronously
+        const [relOneData, relManyData] = await Promise.all([
+            this.getRelationOneMeta(classFields),
+            this.getRelationManyMeta(classFields)
+        ]);        
+    
+        this.loadModels().forEach((model) => {
+            collections_to_models[model.getCollection()] = model;      
+        });      
+    
+        const seriesHydrationfields: string[] = []; 
+        
+        if (allowRelations) {
+            // Handle many-to-many relations
+            for (const key in relManyData) { 
+                if(!fullDataMode && (this as any).constructor._CUT_KEYS.includes(key)){
+                    continue;
+                }
+
+                const relMeta = relManyData[key];  
+        
+                const relationEnabled = this.checkRelEnabled(relMeta.key);
+                if (relationEnabled) {            
+                    this[relMeta.key] = await relMeta.inversionModel.findBy({
+                        conditions: {
+                            [relMeta.foreignKey]: data.id
+                        },
+                        allowRelations: false
+                    });    
+                }                                
+            }
+            
+            // Handle one-to-one relations
+            for (const key in relOneData) {      
+                if(!fullDataMode && (this as any).constructor._CUT_KEYS.includes(key)){
+                    continue;
+                }
+
+                const relMeta = relOneData[key];  
+        
+                const relationEnabled = this.checkRelEnabled(relMeta.key);
+                if (relationEnabled) {        
+                    this[relMeta.key] = await relMeta.model.find(data[relMeta.hydrationField], { allowRelations: false });    
+                }                                
+            }
+        }
+    
+        // Process regular fields and time series
+        for (const key in data) {
+            if (data.hasOwnProperty(key)) {                        
+                if(!fullDataMode && (this as any).constructor._CUT_KEYS.includes(key)){
+                    continue;
+                }
+
+                if (Object.keys(relOneData).includes(key)) {               
+                    continue;
+                }                
+    
+                if (seriesHydrationfields.includes(key)) {
+                    continue;
+                }                    
+    
+                const timeSeriesMetaData = timeSeriesIds[key];  
+          
+                if (timeSeriesMetaData) {
+                    this[key] = data[key];
+                    const seriesModel = collections_to_models[timeSeriesMetaData.collection];
+            
+                    const dataModels = await seriesModel.findBy({
+                        id: { in: data[key] }
+                    });                        
+    
+                    seriesHydrationfields.push(timeSeriesMetaData.hydrationField);
+            
+                    this[timeSeriesMetaData.hydrationField] = dataModels;
+                } else {
+                    this[key] = data[key];            
+                }        
+            }       
+        }     
+    
+        return this as any as ChildClass;
+    }    
+
+    private getModelScalarFields(model: OpModelType<any>): string[]
+    {
+        return FieldsHelper.getAllClassFields(model)
+                    .filter(item => item.indexOf('TrackType') === 0)
+                    .map(item => item.split(':').at(-1))
+    }
+
+    private getTimeSeriesModelFields()
+    {
+        const timeSeriesIds: {[key: string]: {collection: string, hydrationField: string, ids: string[]}} = {};
+
+        for (const key in this as any) {
+            if (this.hasOwnProperty(key)) {             
+          
+                const meta = Reflect.getMetadata(`InverseTimeSeries:${key}`, (this as any));            
+                if(meta){
+                    if(!timeSeriesIds[key]){
+                        timeSeriesIds[key] = {
+                            collection: meta.timeSeriesModel,
+                            hydrationField: meta.hydrationField,
+                            ids: this[key]
+                        };
+                    }
+                }                         
+            }
+        } 
+
+        return timeSeriesIds;
+    }
+    
+    private async getRelationOneMeta(classFields: string[]): Promise<RelOneMetaType<Model<any>>> {
+        return Model.getRelationOneMeta(this, classFields);
+    }
+
+    static async getRelationOneMeta(model: any, classFields: string[]): Promise<RelOneMetaType<Model<any>>>
+    {
+        const relIds: RelOneMetaType<Model<any>> = {};
+        const relationFields = classFields
+            .filter((item: string) => item.indexOf('Relation') === 0 && !item.includes('Inverse'))
+            .map((item: string) => item.split(':').at(-1));        
+    
+        for (const key of relationFields) {  
+            const metadataKey = `Relation:${key}`;
+            const metadata = Reflect.getMetadata(metadataKey, model);                 
+            
+            if (metadata && metadata.promise) {
+                const resolvedMetadata = await metadata.promise;
+                if (!relIds[key]) {
+                    relIds[key] = {
+                        key: resolvedMetadata.key,
+                        required: resolvedMetadata.required,
+                        model: resolvedMetadata.relatedTo,
+                        hydrationField: resolvedMetadata.relationField,
+                        foreignKey: resolvedMetadata.relatedToField
+                    };
+                }
+            }                         
+        } 
+    
+        return relIds;
+    }    
+
+    private async getRelationManyMeta(classFields: string[]): Promise<RelManyMetaType<Model<any>>> {
+        return Model.getRelationManyMeta(this, classFields);
+    }
+
+    static async getRelationManyMeta(model: any, classFields: string[]): Promise<RelManyMetaType<Model<any>>> 
+    {
+        const relIds: RelManyMetaType<Model<any>> = {};
+    
+        const inverseFields = classFields
+            .filter((item: string) => item.indexOf('InverseRelation') === 0)
+            .map((item: string) => item.split(':').at(-1));
+                
+        for (const key of inverseFields) {          
+            const metadataKey = `InverseRelation:${key}`;
+            const metadata = Reflect.getMetadata(metadataKey, model);                            
+    
+            if (metadata && metadata.promise) {
+                const resolvedMetadata = await metadata.promise;
+                if (!relIds[key]) {
+                    relIds[key] = {       
+                        key: resolvedMetadata.key,         
+                        inversionModel: resolvedMetadata.inversionModel,
+                        foreignKey: resolvedMetadata.foreignKey                   
+                    };
+                }
+            }                         
+        } 
+    
+        return relIds;
+    }
+
+    public async toMongo(): Promise<any> {
+        const data: any = {};
+        const timeSeriesIds = this.getTimeSeriesModelFields();
+        const timeSeriesHydrationFields: string[] = [];
+      
+        for (const key in (this as any)) { 
+            if (this.hasRelation(key)) {                
+                data[key] = this.bindRelation(key, this[key]);                
+                continue;
+            }
+    
+            if (!(await this.isDbVariable(key))) {
+                continue;
+            } 
+    
+            const passedFieldCondition: boolean = this.hasOwnProperty(key) && 
+                !((this as any).constructor._BANNED_KEYS 
+                    || Model._BANNED_KEYS
+                ).includes(key) && 
+                !timeSeriesHydrationFields.includes(key)
+            ;
+    
+            if (passedFieldCondition) {                      
+                data[key] = this[key];
+            }
+    
+            if (timeSeriesIds[key]) {
+                data[key] = this[key];
+                timeSeriesHydrationFields.push(timeSeriesIds[key].hydrationField);              
+            }
+        }                
+    
+        return data;
+    }  
+
+    getCollection(): string | null {
+        return (this as any).constructor._collection || this._collection;
+    }
+
+    static getCollection(): string | null {
+        return (this as any).constructor._collection || this._collection;
+    }
+
+
+    async save(): Promise<this> {
+        const data = await this.toMongo();
+        let updatedModelData = data;         
+        if (this.id) {
+            this.preUpdate();
+
+            updatedModelData = await this.dbService.update(data, this.getCollection());
+
+            await this._asyncFill(updatedModelData);
+            this.postUpdate();
+        } else {
+            this.preCreate();      
+      
+            const timeSeriesModel = await import('./types/TimeSeriesModel');      
+            const isTimeSeries = this instanceof timeSeriesModel.default;
+
+            updatedModelData = await this.dbService.insert(data, this.getCollection(), isTimeSeries);      
+
+            await this._asyncFill(updatedModelData);   
+
+            this.postCreate();
+        }
+  
+        return this;
+    }
+
+    static async getModelAnnotations<T extends object>(constructor: new () => T): Promise<Record<string, {annotationType: string, metadata: any}>> {    
+        const annotationsData: Record<string, {annotationType: string, metadata: any}> = {};
+    
+        const metadataKeys = Reflect.getMetadataKeys(constructor.prototype);
+        
+        // Process all metadata keys and collect promises
+        const metadataPromises = metadataKeys.map(async (fullKey: string) => {
+            const [annotationType, propertyKey] = fullKey.split(':');
+            const metadata = Reflect.getMetadata(fullKey, constructor.prototype);
+    
+            if (metadata) {
+                // If this is a relation metadata with a promise
+                if (metadata.promise && (annotationType === 'Relation' || annotationType === 'InverseRelation')) {
+                    const resolvedMetadata = await metadata.promise;
+                    annotationsData[propertyKey] = {
+                        annotationType,
+                        metadata: resolvedMetadata
+                    };
+                } else {
+                    // Handle non-relation metadata as before
+                    const key = metadata.key || propertyKey;
+                    annotationsData[key] = {
+                        annotationType,
+                        metadata
+                    };
+                }
+            }
+        });
+    
+        // Wait for all metadata to be processed
+        await Promise.all(metadataPromises);
+        
+        return annotationsData;
+    }
+
+    public preUpdate(): void
+    {
+        return;
+    }
+
+    public postUpdate(): void
+    {
+        return;
+    }
+
+    public preCreate(): void
+    {
+        return;
+    }
+
+    public postCreate(): void
+    {
+        return;
+    }
+
+    public static isSubclass<T extends Model<T>, C extends new () => T>(constructor: C, baseClass: new () => T): boolean {
+        return baseClass.prototype.isPrototypeOf(constructor.prototype);
+    }
+
+    hasTimeSeries(): boolean 
+    {
+        return Model.checkTimeSeries((this as any).constructor);
+    }
+
+    static checkTimeSeries(constructor: any): boolean
+    {            
+        const data = constructor.prototype as any;
+
+        for (const key in data) {
+
+            if (data.hasOwnProperty(key)) {   
+
+                if(Reflect.getMetadata(`InverseTimeSeries:${key}`, constructor.prototype)){
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    async isDbVariable(variable: string): Promise<boolean> 
+    {
+        return Model.checkDbVariable((this as any).constructor, variable);
+    }
+
+    static async checkDbVariable(constructor: any, variable: string): Promise<boolean> {                   
+        if(variable === 'id'){
+            return true;
+        }
+        
+        const dbAnnotations = await Model.getModelAnnotations(constructor);
+        type AnnotationType = { annotationType: string, key: string };
+    
+        const dbProperties: string[] = Object.keys(dbAnnotations)
+            .map((key: string): AnnotationType => {return {...dbAnnotations[key], key};})
+            .filter((element: AnnotationType) => element.annotationType === 'TrackType' )
+            .map((element: AnnotationType) => element.key);
+    
+        return dbProperties.includes(variable);
+    }
+
+    sanitizeDBData(data: any): any
+    {
+        const dataKeys = Object.keys(data);
+        const sanitizedData: {[key: string]: any} = {};
+
+        for (const key of dataKeys){
+            if(this.isDbVariable(key)){
+                sanitizedData[key] = data[key];
+            }
+        }
+
+        return sanitizedData;
+    }
+
+    public static async watchCollection<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>, 
+        preRun: () => void
+    ){
+        const collection = Reflect.get(this, '_collection');
+        this.checkForInclusionWithThrow(this.name);
+        return await this.dbService.watchCollection(collection, preRun);
+    }
+
+    public static async findOneBy<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>,
+        findParams?: FindByType
+    ): Promise<ChildClass | null> {
+        const conditions = findParams?.conditions ?? {};
+        const ordering = findParams?.ordering ?? null;
+        const fields = findParams?.fields ?? null;
+        const allowRelations = findParams?.allowRelations ?? true;
+        const fullData = findParams?.fullData ?? false;
+
+        this.checkForInclusionWithThrow('');
+
+        
+        const collection = Reflect.get(this, '_collection');        
+        const dbData = await this.dbService.findOneBy(collection, conditions, fields, ordering, allowRelations);
+        
+    
+        if (dbData) {
+            const inst: ChildClass = new (this as { new(): ChildClass })();
+            return await inst._asyncFill(dbData, fullData, allowRelations);
+        }
+    
+        return null;
+    }
+
+    public static async find<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>,
+        id: string,        
+        findParams: Omit<FindByType, 'conditions'> = null
+    ): Promise<ChildClass | null> {        
+        const ordering = findParams?.ordering ?? null;
+        const fields = findParams?.fields ?? null;
+        const allowRelations = findParams?.allowRelations ?? true;          
+        const fullData = findParams?.fullData ?? false;
+
+        const collection = Reflect.get(this, '_collection');
+        this.checkForInclusionWithThrow(this.name);
+
+        const dbData = await this.dbService.findOneBy(collection, { id }, fields, ordering, allowRelations);
+    
+        if (dbData) {            
+            const inst: ChildClass = new (this as { new(): ChildClass })();
+            return await inst._asyncFill(dbData, fullData, allowRelations);
+        }
+    
+        return null;
+    }   
+    
+    public static async findBy<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>,    
+        findParams?: FindByType
+    ): Promise<ChildClass[]> {
+        const conditions = findParams?.conditions ?? {};
+        const ordering = findParams?.ordering ?? null;
+        const fields = findParams?.fields ?? null;
+        const allowRelations = findParams?.allowRelations ?? true;
+        const fullData = findParams?.fullData ?? false;
+
+        const collection = Reflect.get(this, '_collection');
+        this.checkForInclusionWithThrow(this.name);
+        try {
+            const dbData = await this.dbService.findBy(collection, conditions, fields, ordering, allowRelations);   
+            if (dbData.length) {
+                const instanced: ChildClass[] = [];
+        
+                for (const data of dbData) { 
+                    const inst: ChildClass = new (this as { new(): ChildClass })();
+                    instanced.push((await inst._asyncFill(data, fullData,allowRelations)) as ChildClass);
+                }
+        
+                return instanced;
+            }
+        
+            return [];
+        } catch (rwsError: RWSError | any) {
+            console.error(rwsError);
+
+            throw rwsError;
+        }                 
+    }
+
+    public static async delete<ChildClass extends Model<ChildClass>>(
+        this: OpModelType<ChildClass>,
+        conditions: any
+    ): Promise<void> {
+        const collection = Reflect.get(this, '_collection');
+        this.checkForInclusionWithThrow(this.name);         
+        return await this.dbService.delete(collection, conditions);
+    }
+
+    public async delete<ChildClass extends Model<ChildClass>>(): Promise<void> {
+        const collection = Reflect.get(this, '_collection');
+        this.checkForInclusionWithThrow();
+        return await this.dbService.delete(collection, {
+            id: this.id
+        });  
+    }    
+    
+
+    static async create<T extends Model<T>>(this: new () => T, data: any): Promise<T> {
+        const newModel = new this();
+
+        const sanitizedData = newModel.sanitizeDBData(data);
+     
+        await newModel._asyncFill(sanitizedData);
+    
+        return newModel;
+    }
+
+    static loadModels(): Model<any>[]
+    {        
+        return this.configService.get('user_models');
+    }
+
+    loadModels(): Model<any>[]
+    {     
+        return Model.loadModels();
+    }
+
+    private checkRelEnabled(key: string): boolean 
+    {
+        return Object.keys((this as any).constructor._RELATIONS).includes(key) && (this as any).constructor._RELATIONS[key] === true
+    }
+}
+
+
+
+export default Model;
+export { IModel, TrackType, IMetaOpts };
+
+
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/decorators/InverseRelation.ts:
+95
+import 'reflect-metadata';
+import Model, { OpModelType } from '../_model';
+
+interface InverseRelationOpts{
+    key: string,
+    inversionModel: OpModelType<Model<any>>,
+    foreignKey: string    
+  }
+
+  function InverseRelation(inversionModel: () => OpModelType<Model<any>>, sourceModel: () => OpModelType<Model<any>>, foreignKey: string = null) {    
+    return function(target: any, key: string) {     
+        // Store the promise in metadata immediately
+        const metadataPromise = Promise.resolve().then(() => {
+            const model = inversionModel();
+            const source = sourceModel();
+    
+            const metaOpts: InverseRelationOpts = {
+                key,
+                inversionModel: model,
+                foreignKey: foreignKey ? foreignKey : `${source._collection}_id`
+            };             
+    
+            return metaOpts;
+        });
+
+        // Store both the promise and the key information
+        Reflect.defineMetadata(`InverseRelation:${key}`, {
+            promise: metadataPromise,
+            key
+        }, target);
+    };
+}
+
+export default InverseRelation;
+export {InverseRelationOpts};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/decorators/InverseTimeSeries.ts:
+97
+import 'reflect-metadata';
+
+interface InverseTimeSeriesOpts{
+    timeSeriesModel: string
+    hydrationField: string
+  }
+  
+function InverseTimeSeries(timeSeriesModel: string, hydrationField: string) {
+
+    const metaOpts: InverseTimeSeriesOpts = {
+        timeSeriesModel: timeSeriesModel,
+        hydrationField: hydrationField
+    };
+
+
+    return function(target: any, key: string) {          
+        Reflect.defineMetadata(`InverseTimeSeries:${key}`, metaOpts, target);
+    };
+}
+
+export default InverseTimeSeries;
+export {InverseTimeSeriesOpts};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/decorators/Relation.ts:
+88
+import 'reflect-metadata';
+import Model, { OpModelType } from '../_model';
+
+interface IRelationOpts {
+    required?: boolean
+    key?: string
+    relationField?: string
+    relatedToField?: string
+    relatedTo: OpModelType<Model<any>>
+}
+  
+function Relation(theModel: () => OpModelType<Model<any>>, required: boolean = false, relationField: string = null, relatedToField: string = 'id') {
+    return function(target: any, key: string) {     
+        // Store the promise in metadata immediately
+        const metadataPromise = Promise.resolve().then(() => {
+            const relatedTo = theModel();
+            const metaOpts: IRelationOpts = {required, relatedTo, relatedToField};                    
+            if(!relationField){
+                metaOpts.relationField = relatedTo._collection + '_id';
+            } else{
+                metaOpts.relationField = relationField;
+            }  
+            metaOpts.key = key;
+            return metaOpts;
+        });
+
+        // Store both the promise and the key information
+        Reflect.defineMetadata(`Relation:${key}`, {
+            promise: metadataPromise,
+            key
+        }, target);
+    };
+}
+
+
+export default Relation;
+export {IRelationOpts};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/decorators/TrackType.ts:
+89
+import 'reflect-metadata';
+import { OpModelType } from '../_model';
+
+interface ITrackerOpts{
+    required?: boolean,
+    relationField?: string
+    relatedToField?: string,
+    relatedTo?: OpModelType<any>,
+    inversionModel?: OpModelType<any>,
+    relationName?: string
+  }
+  
+  interface IMetaOpts extends ITrackerOpts{
+    type: any,
+    tags: string[]
+  }
+  
+function TrackType(type: any, opts: ITrackerOpts | null = null, tags: string[] = []) {
+    if(!opts){
+        opts = {
+            required: false
+        };
+    }
+  
+    const required = opts.required;
+  
+    const metaOpts: IMetaOpts = {type, tags, required};
+  
+    if(opts.relatedToField && opts.relatedTo){
+        metaOpts.relatedToField = opts.relatedToField;      
+        metaOpts.relatedTo = opts.relatedTo;
+
+        if(!opts.relationField){
+            metaOpts.relationField = opts.relatedTo + '_id';
+        } else{
+            metaOpts.relationField = opts.relationField;
+        }
+    }     
+  
+    if(opts.inversionModel){
+        metaOpts.inversionModel = opts.inversionModel;  
+    }
+  
+    //const resolvedType = typeof type === 'function' ? type() : type;   
+    
+    if(type._collection){    
+        metaOpts.type = (type as any);
+    }
+  
+    return function(target: any, key: string) {          
+        Reflect.defineMetadata(`TrackType:${key}`, metaOpts, target);
+    };
+}
+
+export default TrackType;
+export {IMetaOpts, ITrackerOpts};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/decorators/index.ts:
+85
+import InverseRelation from './InverseRelation';
+import Relation from './Relation';
+import TrackType from './TrackType';
+import InverseTimeSeries from './InverseTimeSeries';
+
+export {
+    InverseRelation, Relation, TrackType, InverseTimeSeries
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/types/FindParams.ts:
+85
+export type FindByType = {
+    conditions?: any,    
+    ordering?: { [fieldName: string]: string },
+    fields?: string[],
+    allowRelations?: boolean,
+    fullData?: boolean
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/types/ITimeSeries.ts:
+86
+export default interface ITimeSeries {  
+    value: number,  
+    timestamp?: Date;
+    params?: any;
+    time_tracker_id?: string
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/models/types/TimeSeriesModel.ts:
+90
+import RWSModel, { TrackType as RWSTrackType } from '../_model';
+
+export default class TimeSeriesModel<ChildClass> extends RWSModel<TimeSeriesModel<ChildClass>>{
+    @RWSTrackType(Number) value: number;
+
+    @RWSTrackType(Date) timestamp: Date;
+    
+    @RWSTrackType(Object)
+        params: any;
+
+    constructor(data?: any) {    
+        super(data);
+
+        if(!this.timestamp) {
+            this.timestamp = new Date();
+        }
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/routing/annotations/Route.ts:
+87
+import 'reflect-metadata';
+
+type RequestMethodType = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+interface IHTTProuteParams {
+    responseType: string
+}
+
+interface IHTTProuteOpts {
+    name: string;
+    method: RequestMethodType;
+    params?: IHTTProuteParams
+}
+  
+function Route(name: string, method: RequestMethodType = 'GET', params: IHTTProuteParams = { responseType: 'json' }) {
+    const metaOpts: IHTTProuteOpts = {name, method, params};
+
+    return function(target: any, key: string) {          
+        Reflect.defineMetadata(`Route:${key}`, metaOpts, target);
+    };
+}
+
+export default Route;
+export {IHTTProuteOpts, RequestMethodType, IHTTProuteParams};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/routing/annotations/index.ts:
+87
+import Route from './Route';
+
+export {
+    Route
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/routing/routes.ts:
+76
+import { IRouteParams } from "../../nest/decorators/RWSRoute";
+
+interface IHTTProute {
+    name: string;
+    path: string;  
+    method: string;
+    noParams?: boolean;
+    options?: IRouteParams;
+}
+
+interface IPrefixedHTTProutes {
+    prefix: string;
+    controllerName: string;
+    routes: IHTTProute[];
+}
+
+type RWSHTTPRoutingEntry = IHTTProute | IPrefixedHTTProutes;
+
+export { IHTTProute, IPrefixedHTTProutes, RWSHTTPRoutingEntry };
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/runNest.ts:
+69
+import { DynamicModule, forwardRef, Inject, Type } from '@nestjs/common';
+import { IRWSModule, NestModuleTypes, RWSModuleType } from './types/IRWSModule';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RouterService } from './services/RouterService';
+import { ConsoleService } from './services/ConsoleService';
+import { AuthService } from './services/AuthService';
+import { UtilsService } from './services/UtilsService';
+import IAppConfig from './types/IAppConfig';
+import IDbUser from './types/IDbUser';
+import { DBService } from './services/DBService';
+import { 
+  Module  
+} from '@nestjs/common';
+import { NestFactory } from '@nestjs/core';
+import { ServerOpts } from './types/ServerTypes';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import path from 'path';
+import RWSModel from './models/_model';
+import { DecoratorExplorerService } from './services/DecoratorExplorerService';
+
+const baseModules: (cfg: IAppConfig) => (DynamicModule| Type<any> | Promise<DynamicModule>)[] = (cfg: IAppConfig) => [   
+  ConfigModule.forRoot({
+    isGlobal: true,
+    load: [ () => cfg ]
+  }),  
+];
+
+@Module({})
+export class RWSModule {
+  static cfgData: IAppConfig;
+  
+  static async forRoot(cfg: IAppConfig, cli: boolean = false): Promise<DynamicModule> {       
+    const processedImports = [
+      ...baseModules(cfg)   
+    ];
+
+    if(!cli){
+      processedImports.push(ServeStaticModule.forRoot({
+        rootPath: path.join(process.cwd(), cfg.pub_dir), 
+        serveRoot: cfg.static_route || '/',
+      }));      
+    }
+
+    return {
+      module: RWSModule,
+      imports: processedImports as unknown as NestModuleTypes,
+      providers: [
+        DBService,
+        ConfigService,
+        UtilsService, 
+        ConsoleService, 
+        AuthService,
+        RouterService        
+      ],  
+      exports: [
+        DBService,
+        ConfigService,
+        UtilsService, 
+        ConsoleService, 
+        AuthService,
+        RouterService
+      ]
+    };
+  }
+
+  onModuleInit() {    
+    console.log('RWSModule has been initialized');
+  }
+}
+
+export default async function bootstrap(
+  nestModule: any, 
+  cfgRunner: () => IAppConfig, 
+  opts: ServerOpts = {},
+  controllers: any[] = []
+) {
+  const rwsOptions = cfgRunner();  
+  const app = await NestFactory.create(nestModule.forRoot(RWSModule.forRoot(rwsOptions, false)));
+  
+  const routerService = app.get(RouterService);
+
+  const dbService = app.get(DBService);
+  const configService = app.get(ConfigService);
+
+  RWSModel.dbService = dbService;
+  RWSModel.configService = configService;
+
+  const routes = routerService.generateRoutesFromResources(rwsOptions.resources || []);
+  await routerService.assignRoutes(app.getHttpAdapter().getInstance(), routes, controllers);
+
+  await app.listen(rwsOptions.port);
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/AuthService.ts:
+82
+import { Injectable } from '../../nest';
+
+import jwt from 'jsonwebtoken';
+
+import IAuthUser from '../types/IAuthUser';
+import HTTP, { ServerResponse } from 'http';
+import { Error403 } from '../errors';
+import IDbUser from '../types/IDbUser';
+import Model from '../models/_model';
+import { ConsoleService } from './ConsoleService';
+import { ConfigService } from '@nestjs/config';
+
+type UserListManager = {
+    getList: () => {[clientId: string]: Partial<IDbUser>}
+    get: (socketId: string) => Partial<IDbUser> | null
+    set: (socketId: string, val: IAuthUser) => void
+    getToken: (socketId: string) => string | null
+    setToken: (socketId: string, val: string) => void
+    getTokenList: () => {[socketId: string]: string;}
+    disconnectClient: (socketId: string) => void
+}
+
+const _DEFAULTS_USER_LIST_MANAGER = {
+    getList: () => { return {} },
+    get: (socketId: string): IDbUser | null => null,
+    set: (socketId: string, val: IAuthUser) => {},
+    getToken: (socketId: string): string | null => null,
+    setToken: (socketId: string, val: string) => {},
+    getTokenList: () => { return {} },
+    disconnectClient: (socketId: string) => {}
+}
+
+@Injectable()
+class AuthService {
+    private user: Partial<IDbUser>
+
+    constructor(private configService: ConfigService, private consoleService: ConsoleService) {}
+
+    async authenticate(clientId: string, jwt_token: string | null = null, userListManager: UserListManager = _DEFAULTS_USER_LIST_MANAGER): Promise<boolean | null>
+    {
+        if(jwt_token){
+            jwt_token =  jwt_token.replace('Bearer ', '');            
+        }
+
+        const UserClass = await this.configService.get('user_class');  
+
+        if(!jwt_token){                
+            return null;         
+        }        
+
+        if(!userListManager.get(clientId)){
+            try{
+                const userClass = await this.authorize<typeof UserClass>(jwt_token, UserClass);
+                this.setUser(userClass);
+
+                userListManager.set(clientId, userClass);   
+
+                if(!userListManager.getToken(clientId)){    
+                    userListManager.setToken(clientId, jwt_token);
+                }
+                
+                return true;
+            } catch(e: Error | any){
+                this.consoleService.error('RWS AUTH ERROR', e.message);
+
+                return false;
+            }
+        }
+
+        if(!userListManager.get(clientId)){
+            userListManager.disconnectClient(clientId);    
+            return false;
+        }      
+    }
+    
+    setUser<IUser extends { db: Model<any>, loadDbUser: () => Promise<void> }>(user: IUser): AuthService 
+    {
+        this.user = user;
+
+        return this;
+    }
+
+    getUser<IUser extends { db: Model<any>, loadDbUser: () => Promise<void> }>(): IUser
+    {
+        return this.user as IUser;
+    }
+
+    async authorize<IUser extends { db: Model<any>, loadDbUser: () => Promise<void> }>(token: string, constructor: new (data: any) => IUser ): Promise<IUser> {
+        const secretKey: string = this.configService.get('secret_key');
+            
+        return await new Promise((approve, reject) => {
+            jwt.verify(token, secretKey, (error, tokenData) => {
+                if (error) {                        
+                    reject(error);
+                    return;
+                }
+                
+                const theUser: IUser = new constructor(tokenData);
+            
+                if(this.getUser()){
+                    approve(this.getUser() as IUser);
+                    return;
+                }else{
+                    theUser.loadDbUser().then(() => {                    
+                        this.consoleService.rwsLog('RWS AUTH LOG', this.consoleService.color().green('Loaded RWS User Model'), theUser.db.id);
+                        
+                        approve(theUser);
+                    });
+                }                            
+            });
+        });
+    }
+}
+
+export { AuthService, _DEFAULTS_USER_LIST_MANAGER };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/ConsoleService.ts:
+85
+import { Injectable } from '../../nest';
+
+import chalk, { Chalk } from 'chalk';
+import pino, { Logger as PinoLogger } from 'pino';
+import pinoPretty from 'pino-pretty'; // Import pino-pretty
+
+interface IJSONColors {
+  [codeLement: string]: keyof Chalk
+}
+
+@Injectable()
+class ConsoleService {
+    private isEnabled: boolean = true;
+    private originalLogMethods?: any = null;
+
+    constructor() {        
+        this.log = this.log.bind(this);
+        this.error = this.error.bind(this);
+        this.warn = this.warn.bind(this);
+
+        this.isEnabled = true;
+        this.originalLogMethods = this.getOriginalLogFunctions();
+    }
+
+
+    static color(): Chalk {
+        return chalk;
+    }
+
+    static log(...obj: any[]): void {
+        const _self = this;
+
+        let typeBucket: any[] = [];
+        let lastType: string | null = null;
+
+        obj.forEach((elem: any, index: number) => {
+            const elemType = typeof elem;
+            const isLast: boolean = index == obj.length - 1;
+
+            if (((lastType === null && obj.length === 1) || (lastType !== null && lastType !== elemType)) || isLast) {
+                if (lastType === 'string') {
+                    console.log(typeBucket.join(' '));
+                } else {
+
+                    typeBucket.forEach((bucketElement) => {
+                        ConsoleService.prettyPrintObject(bucketElement);
+                    });
+                }
+
+                typeBucket = [];
+
+                if (isLast) {
+                    if (elemType === 'string') {
+                        console.log(elem);
+                    } else {
+                        ConsoleService.prettyPrintObject(elem);
+                    }
+                    return;
+                }
+            }
+
+            typeBucket.push(elem);
+
+            lastType = elemType; // Update the lastType for the next iteration
+        });
+    } 
+    
+    static warn(...obj: any[]): void {
+
+        let intro = 'RWS CLI WARNING';
+
+        if(obj.length > 1 && typeof obj[0] === 'string'){
+            intro = obj[0];
+            obj = obj.filter((el: any, index: number) => index > 0);
+        }
+
+        obj = [chalk.yellow(`[${intro}]`), ...obj];
+
+        console.warn(...obj); 
+    }    
+
+    static error(...obj: any[]): void {
+        let intro = 'RWS CLI ERROR';
+
+        if(obj.length > 1 && typeof obj[0] === 'string'){
+            intro = obj[0];
+            obj = obj.filter((el: any, index: number) => index > 0);
+        }
+
+        obj = [chalk.red(`[${intro}]`), ...obj];
+
+        console.log(...obj);  
+    }
+
+    static rwsLog(...obj: string[]): void 
+    {    
+        let intro = 'RWS CLI ERROR';
+
+        if(obj.length > 1 && typeof obj[0] === 'string'){
+            intro = obj[0];
+            obj = obj.filter((el: any, index: number) => index > 0);
+        }
+
+        obj = [chalk.green(`[${intro}]`), ...obj];
+
+        console.log(...obj);  
+    }
+
+    static colorObject(obj: any): string {
+        const _JSON_COLORS: IJSONColors = {
+            'keys': 'green',
+            'objectValue': 'magenta',
+            'braces': 'blue',
+            'arrayBraces': 'yellow',
+            'colons': 'white', // Color for colons
+            'default': 'reset' // Default color to reset to default chalk color
+        };
+
+        const getCodeColor = (chalkKey: string, textValue: string): string => {
+            return (chalk as any)[chalkKey](textValue);
+        };
+
+        const objString = JSON.stringify(this.sanitizeObject(obj), null, 2);
+        const lines = objString.split('\n');
+
+        const coloredLines: string[] = [];
+
+        for (const line of lines) {
+            const parts = line.split(/("[^"]*"\s*:\s*)|("[^"]*":\s*)|([{}[\],])/); // Split the line into parts around keys, colons, commas, braces, and brackets
+
+            // Process each part and colorize accordingly
+            for (let i = 0; i < parts.length; i++) {
+                const part = parts[i];
+                if (part !== undefined) {
+                    const trimmedPart = part.trim();
+                    if (trimmedPart === ':') {
+                    // This part is a colon, colorize it with white
+                        parts[i] = getCodeColor(_JSON_COLORS.colons, ':');
+                    } else if (trimmedPart === ',') {
+                    // This part is a comma, colorize it with white
+                        parts[i] = getCodeColor(_JSON_COLORS.colons, ',');
+                    } else if (trimmedPart === '[' || trimmedPart === ']') {
+                    // This part is a bracket, colorize it with the arrayBraces color
+                        parts[i] = getCodeColor(_JSON_COLORS.arrayBraces, part);
+                    } else if (i % 4 === 1) {
+                    // This part is a key, colorize it with the keys color
+                        const key = trimmedPart;
+                        if (key === ':') {
+                            parts[i] = getCodeColor(_JSON_COLORS.colons, key);
+                        } else {
+                            parts[i] = getCodeColor(_JSON_COLORS.keys, key);
+                        }
+                    } else if (i % 4 === 3) {
+                    // This part is a value, colorize it with objectValue
+                        const value = trimmedPart;
+                        parts[i] = getCodeColor(_JSON_COLORS.objectValue, value);
+                    }
+                }
+            }
+
+            coloredLines.push(parts.join('')); // Join and add the modified line to the result
+        }
+
+        return coloredLines.join('\n'); // Join the colored lines and return as a single string
+    }
+
+    static sanitizeObject(obj: any): any {
+        const sensitiveKeys = ['mongo_url', 'mongo_db', 'ssl_cert', 'ssl_key', 'secret_key', 'aws_access_key', 'aws_secret_key'];
+    
+        const sanitizedObj = { ...obj }; // Create a shallow copy of the object
+
+        for (const key of sensitiveKeys) {
+            if (sanitizedObj.hasOwnProperty(key)) {
+                sanitizedObj[key] = '<VALUE HIDDEN>';
+            }
+        }
+
+        return sanitizedObj;
+    }
+
+    static getPino(): PinoLogger
+    {
+        return pino(pinoPretty());
+    }
+
+    static prettyPrintObject(obj: any): void {
+        this.getPino().info(this.colorObject(this.sanitizeObject(obj)));
+    }
+
+    color(): Chalk {
+        return ConsoleService.color();
+    }
+
+    log(...obj: any[]): void {
+        if(this.isEnabled){
+            ConsoleService.log(...obj);
+        }
+    } 
+    
+    warn(...obj: any[]): void {
+        if(this.isEnabled){
+            ConsoleService.warn(...obj);
+        }
+    }    
+
+    error(...obj: any[]): void {
+        if(this.isEnabled){
+            ConsoleService.error(...obj);
+        } 
+    }
+
+    rwsLog(...obj: string[]): void 
+    {    
+        if(this.isEnabled){
+            ConsoleService.rwsLog(...obj);
+        } 
+    }
+
+    getPino(): PinoLogger
+    {
+        return ConsoleService.getPino();
+    }
+
+    stopLogging(): void {
+        this.isEnabled = false;
+        this.disableOriginalLogFunctions();
+    }
+
+    startLogging(): void {
+        this.isEnabled = true;
+        this.restoreOriginalLogFunctions();
+    }
+
+    private getOriginalLogFunctions = () => {
+        return {
+            log: console.log,
+            warn: console.warn,
+            error: console.error,
+        };
+    };
+
+    private disableOriginalLogFunctions = () => {
+        console.log = (...args: string[]) => { };
+        console.warn = (...args: string[]) => { };
+        console.error = (...args: string[]) => { };
+    };
+
+    private restoreOriginalLogFunctions = () => {
+        const originalF = this.originalLogMethods;
+
+        console.log = originalF.log;
+        console.warn = originalF.warn;
+        console.error = originalF.error;
+    };
+
+    updateLogLine(message: string) {
+        process.stdout.write('\r' + message);
+    }
+
+  
+}
+
+
+export {
+    ConsoleService
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/DBService.ts:
+80
+import { PrismaClient } from '@prisma/client';
+import { Collection, Db, MongoClient } from 'mongodb';
+import ITimeSeries from '../models/types/ITimeSeries';
+import { IModel } from '../models/_model';
+import { ConfigService } from '@nestjs/config';
+import {ConsoleService} from './ConsoleService';
+import { RWSError } from '../errors';
+import { Injectable } from '../../nest';
+
+interface IDBClientCreate {
+  dbUrl?: string;
+  dbName?: string;
+}
+
+@Injectable()
+class DBService {
+    private client: PrismaClient;
+    private opts: IDBClientCreate = null;
+    private connected = false;
+
+    constructor(private configService: ConfigService){}
+
+    private connectToDB(opts: IDBClientCreate = null) {
+        if(opts){
+            this.opts = opts;
+        }else{
+            this.opts = {
+                dbUrl: this.configService.get('mongo_url'),        
+                dbName: this.configService.get('mongo_db'),
+            };
+        }
+
+        if(!this.opts.dbUrl){
+            ConsoleService.error('NO DB CFG');
+
+            return;
+        }    
+  
+        try{
+            this.client = new PrismaClient({ 
+                datasources: {
+                    db: {
+                        url: this.opts.dbUrl
+                    },
+                },
+            });     
+
+            this.connected = true;
+        } catch (e: Error | any){            
+            ConsoleService.error('PRISMA CONNECTION ERROR', e);            
+            throw new RWSError(e, 'PRISMA CONNECTION ERROR');
+        }
+    }
+
+    private async createBaseMongoClient(): Promise<MongoClient>
+    {
+        const dbUrl = this.opts?.dbUrl || this.configService.get('mongo_url');
+        const client = new MongoClient(dbUrl);
+    
+        await client.connect();
+
+        return client;
+
+    }
+
+    private async createBaseMongoClientDB(): Promise<Db>
+    {
+        const dbName = this.opts?.dbName || this.configService.get('mongo_db');
+        const client = await this. createBaseMongoClient();
+        return client.db(dbName);
+    }
+
+    public async cloneDatabase(source: string, target: string): Promise<void> {
+        const client = await this.createBaseMongoClient();
+
+        // Source and target DB
+        const sourceDb = client.db(source);
+        const targetDb = client.db(target);
+
+        // Get all collections from source DB
+        const collections = await sourceDb.listCollections().toArray();
+
+        // Loop over all collections and copy them to the target DB
+        for (const collection of collections) {
+            const docs = await sourceDb.collection(collection.name).find({}).toArray();
+            await targetDb.collection(collection.name).insertMany(docs);
+        }
+
+        await client.close();
+    }
+
+    async watchCollection(collectionName: string, preRun: () => void): Promise<any>
+    {    
+        const db = await this.createBaseMongoClientDB();
+        const collection = db.collection(collectionName);
+
+        const changeStream = collection.watch();    
+        return new Promise((resolve) => {      
+            changeStream.on('change', (change) => {           
+                resolve(change);
+            });
+
+            preRun();
+        });   
+    }
+
+    async insert(data: any, collection: string, isTimeSeries: boolean = false) {
+    
+        let result: any = data;
+        // Insert time-series data outside of the transaction
+
+        if(isTimeSeries){
+            const db = await this.createBaseMongoClientDB();
+            const collectionHandler = db.collection(collection);
+      
+            const insert = await collectionHandler.insertOne(data);
+
+            result = await this.findOneBy(collection, { id: insert.insertedId.toString()  });
+            return result;
+        }
+
+        const prismaCollection = this.getCollectionHandler(collection);    
+
+        result = await prismaCollection.create({ data });
+
+        return await this.findOneBy(collection, { id: result.id });
+    }
+
+    async update(data: any, collection: string): Promise<IModel> 
+    {
+        const model_id: string = data.id;    
+        delete data['id'];
+
+        const prismaCollection = this.getCollectionHandler(collection);
+
+        await prismaCollection.update({
+            where: {
+                id: model_id,
+            },
+            data: data,
+        });    
+
+        
+        return await this.findOneBy(collection, { id: model_id });
+    }
+  
+
+    async findOneBy(collection: string, conditions: any, fields: string[] | null = null, ordering: { [fieldName: string]: string } = null, allowRelations: boolean = true): Promise<IModel|null>
+    {    
+        const params: any = { where: conditions };
+
+        if(fields){
+            params.select = {};
+            fields.forEach((fieldName: string) => {        
+                params.select[fieldName] = true;
+            });    
+        }
+
+        if(ordering){
+            params.orderBy = ordering;
+        }
+
+        const retData = await this.getCollectionHandler(collection).findFirst(params);
+
+        return retData;
+    }
+
+    async delete(collection: string, conditions: any): Promise<void>
+    {    
+        await this.getCollectionHandler(collection).deleteMany({ where: conditions });
+        return;
+    }
+
+    async findBy(collection: string, conditions: any, fields: string[] | null = null, ordering: { [fieldName: string]: string } = null, allowRelations: boolean = true): Promise<IModel[]>
+    {    
+        const params: any ={ where: conditions };
+
+        if(fields){
+            params.select = {};
+            fields.forEach((fieldName: string) => {        
+                params.select[fieldName] = true;
+            });    
+        }
+
+        if(ordering){
+            params.orderBy = ordering;
+        }
+
+        const retData = await this.getCollectionHandler(collection).findMany(params);        
+
+        return retData;
+    }
+
+    async collectionExists(collection_name: string): Promise<boolean>
+    {
+        const dbUrl = this.opts?.dbUrl || this.configService.get('mongo_url');
+        const client = new MongoClient(dbUrl);
+
+        try {
+            await client.connect();    
+
+            const db = client.db('junctioned'); // Replace with your database name
+
+            const collections = await db.listCollections().toArray();
+            const existingCollectionNames = collections.map((collection) => collection.name);
+
+            return existingCollectionNames.includes(collection_name);
+        } catch (error) {
+            ConsoleService.error('Error connecting to MongoDB:', error);
+
+            throw error;
+        }    
+    }
+
+    async createTimeSeriesCollection(collection_name: string): Promise<Collection<ITimeSeries>>
+    {    
+        try {    
+            const db = await this.createBaseMongoClientDB();
+
+            // Create a time series collection
+            const options = {
+                timeseries: {
+                    timeField: 'timestamp', // Replace with your timestamp field
+                    metaField: 'params' // Replace with your metadata field
+                }
+            };
+
+            await db.createCollection(collection_name, options); // Replace with your collection name
+
+            return db.collection(collection_name);
+
+        } catch (error) {
+            ConsoleService.error('Error connecting to MongoDB:', error);
+
+            throw error;
+        }
+    }
+
+    private getCollectionHandler(collection: string): any 
+    {    
+        if(!this.client || !this.connected){
+            this.connectToDB();
+        }
+
+        return (this.client[collection as keyof PrismaClient] as any);
+    }
+
+    private setOpts(opts: IDBClientCreate = null): this
+    {    
+        this.opts = opts;
+        return this;
+    }
+}
+
+export { DBService, IDBClientCreate };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/DecoratorExplorerService.ts:
+95
+import 'reflect-metadata';
+import { DiscoveryService } from '@nestjs/core';
+import { Injectable } from '@nestjs/common';
+import { COMMAND_DECORATOR_META_KEY, CmdMetadataType, RWSBaseCommand } from '../commands/_command';
+import path from 'path';
+import fs from 'fs';
+import { MD5Service } from './MD5Service';
+import { UtilsService } from './UtilsService';
+
+export type CMDProvider = {
+  instance: RWSBaseCommand,
+  metadata: CmdMetadataType
+}
+
+export type CMDProviderList = {
+  [key: string]: CMDProvider
+}
+
+@Injectable()
+export class DecoratorExplorerService {
+  constructor(private readonly discoveryService: DiscoveryService, private readonly utilsService: UtilsService, private readonly md5Service: MD5Service) {}
+
+  getCommandProviders(): CMDProviderList
+  {    
+    const providers = this.discoveryService.getProviders(); 
+    const metadDataBag: CMDProviderList = {};
+    
+    
+    for(const wrapper of providers){
+      if (wrapper.instance) {
+        const constructor = wrapper.instance.constructor;
+        const metadata: CmdMetadataType = Reflect.getMetadata(COMMAND_DECORATOR_META_KEY, constructor);      
+                 
+        if (metadata) {
+          metadDataBag[metadata.options.name] = {
+            instance: wrapper.instance,
+            metadata
+          };
+        }
+      }
+    };
+
+    return metadDataBag;
+  }
+
+
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/MD5Service.ts:
+81
+import { Injectable } from '../../nest';  
+import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs';
+import {TraversalService} from './TraversalService';
+import {UtilsService} from './UtilsService';
+import { rwsPath } from '@rws-framework/console';
+
+@Injectable()
+class MD5Service {
+    constructor(
+        private traversalService: TraversalService,         
+        private utilsService: UtilsService
+    ) {}
+
+    async calculateFileMD5(filePath: string): Promise<string> 
+    {
+    
+
+        return new Promise((resolve, reject) => {
+            const hash = crypto.createHash('md5');
+            const input = fs.createReadStream(filePath);
+
+            input.on('readable', () => {
+                const data = input.read();
+                if (data) {
+                    hash.update(data);
+                } else {
+                    resolve(hash.digest('hex'));
+                }
+            });
+
+            input.on('error', reject);
+        });
+    }
+
+    async generateCliHashes(fileNames: string[]): Promise<string[]>
+    {
+        const md5Pack: string[] = [];
+
+        for (const key in fileNames) {
+            const fileName: string = fileNames[key];          
+            const md5 = await this.calculateFileMD5(fileName);        
+            md5Pack.push(md5);
+        }
+
+        return md5Pack;
+    }
+
+    async cliClientHasChanged(consoleClientHashFile: string, tsFilename: string): Promise<boolean> 
+    {
+        const moduleCfgDir = path.resolve(rwsPath.findRootWorkspacePath(process.cwd()), 'node_modules', '.rws');
+        const generatedHash: string = fs.readFileSync(consoleClientHashFile, 'utf-8');
+           
+
+        const cmdFiles = this.batchGenerateCommandFileMD5(moduleCfgDir);    
+        const currentSumHashes = this.md5((await this.generateCliHashes([tsFilename, ...cmdFiles])).join('/'));        
+
+        if (generatedHash !== currentSumHashes) {
+            return true;
+        }
+
+        return false;
+    }
+
+    batchGenerateCommandFileMD5(moduleCfgDir: string): string[] 
+    {
+    
+        if (!fs.existsSync(moduleCfgDir)) {
+            fs.mkdirSync(moduleCfgDir);
+        }
+
+        if (!fs.existsSync(`${moduleCfgDir}/_rws_installed`) || !fs.existsSync(`${moduleCfgDir}/_cli_cmd_dir`)) {            
+            return [];
+        }        
+
+        const cmdDirPaths: string[] = fs.readFileSync(`${moduleCfgDir}/_cli_cmd_dir`, 'utf-8').split('\n');        
+        let cmdFilesList: { [key: string]: string } = {};        
+
+        cmdDirPaths.forEach((dirPath) => {            
+            const cmdFiles = this.traversalService.getAllFilesInFolder(dirPath, [
+                /.*\/index\.ts/g,
+                /.*\/_command\.ts/g
+            ]);
+
+            cmdFiles.forEach((cmdFile: string) => {
+                const fileNameSplit: string[] = cmdFile.split('/');
+                const fileName: string = fileNameSplit[fileNameSplit.length - 1];                
+                if(!Object.keys(cmdFilesList).includes(fileName)){
+                    cmdFilesList[fileName] = cmdFile;
+                }
+            });
+        });    
+        
+        return Object.keys(cmdFilesList).map((key) => cmdFilesList[key]);
+    }
+
+    md5(input: string): string
+    {
+        return crypto.createHash('md5').update(input).digest('hex');
+    }
+}
+
+export {MD5Service};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/ProcessService.ts:
+85
+import { execSync } from 'child_process';
+import {ConsoleService} from './ConsoleService';
+import { Injectable } from '../../nest';  
+import readline from 'readline';
+import { rwsShell } from '@rws-framework/console';
+
+interface IExecCmdOpts {
+  verbose?: boolean
+  _default: any | null
+}
+
+type InterpreterType = 'node' | 'none';
+
+interface ICommandOpts {
+  exec_mode?: string
+  index?: number,
+  cwd?: string,
+  interpreter?: InterpreterType
+  env: {
+    [key: string]: string
+  }
+}
+
+@Injectable()
+class ProcessService {
+
+    constructor(private consoleService: ConsoleService){}
+
+    getParentPID(pid: number): number {
+        const command = `ps -o ppid= -p ${pid} | awk '{print $1}'`;
+        return parseInt(execSync(command).toString().trim(), 10);
+    }
+
+    getAllProcessesIds(): number[] {
+        const startingPID = process.pid;
+
+        return [startingPID, this.getParentPID(startingPID)];
+    }
+
+    runShellCommand: (command: string, cwd?: string | null, silent?: boolean) => Promise<void> = rwsShell.runCommand;
+    static runShellCommand: (command: string, cwd?: string | null, silent?: boolean) => Promise<void> = rwsShell.runCommand;
+
+    sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async getInput(prompt: string): Promise<string> {
+        const rl = readline.createInterface({
+            input: process.stdin,
+            output: process.stdout
+        });
+
+        return new Promise((resolve) => {
+            rl.question(this.consoleService.color().red('[RWS CLI Input Prompt] ' + prompt), (answer) => {
+                resolve(answer);
+                rl.close();
+            });
+        });
+    }
+}
+
+export { IExecCmdOpts, ICommandOpts, ProcessService };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/RWSFillService.ts:
+85
+import { forwardRef, Inject, Injectable } from '@nestjs/common';
+import {UtilsService, ConsoleService, AuthService } from '../index';
+import { ConfigService } from '@nestjs/config';
+
+@Injectable()
+export class RWSFillService {
+    constructor(        
+        @Inject(forwardRef(() => UtilsService)) private utilsService: UtilsService,    
+        @Inject(forwardRef(() => AuthService)) private authService: AuthService,
+        @Inject(forwardRef(() => ConsoleService)) private consoleService: ConsoleService
+    ){
+    }
+
+    fillBaseServices(target: {        
+        utilsService: UtilsService,    
+        authService: AuthService,
+        consoleService: ConsoleService
+    }){        
+        target.utilsService = this.utilsService;
+        target.authService = this.authService;
+        target.consoleService = this.consoleService;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/RouterService.ts:
+84
+import 'reflect-metadata';
+import TheService from './_service';
+import { IHTTProute, RWSHTTPRoutingEntry } from '../routing/routes';
+import { IHTTProuteParams } from '../routing/annotations/Route';
+import path from 'path';
+import { RWSError } from '../errors/index';
+import { ConsoleService } from './ConsoleService';
+import { Injectable } from '../../nest';  
+import { ConfigService } from '@nestjs/config';
+import { Controller } from '@nestjs/common/interfaces';
+import { IRWSResource } from '../types/IRWSResource';
+import { INestApplication, Type } from '@nestjs/common';
+import { Get, Post, Put, Delete, Controller as NestController } from '@nestjs/common';
+
+type RouteEntry = {[key: string]: [any, string, IHTTProuteParams, string]};
+
+interface IControllerRoutes {
+  get: RouteEntry;
+  post: RouteEntry;
+  put: RouteEntry;
+  delete: RouteEntry;
+}
+
+@Injectable()
+class RouterService {  
+    constructor(
+        private configService: ConfigService, 
+        private consoleService: ConsoleService
+    ) {}
+
+    generateRoutesFromResources(resources: IRWSResource[]): RWSHTTPRoutingEntry[] {    
+        return [];
+    }
+
+    private generateResourceRoutes(resource: IRWSResource): IHTTProute[] {
+        const routes: IHTTProute[] = [];
+        const endpoints = resource.endpoints || {
+            create: true,
+            read: true,
+            update: true,
+            delete: true,
+            list: true
+        };
+
+        if (endpoints.create) {
+            routes.push({
+                name: `${resource.name}:create`,
+                path: '/',
+                method: 'POST'
+            });
+        }
+
+        if (endpoints.read) {
+            routes.push({
+                name: `${resource.name}:read`,
+                path: '/:id',
+                method: 'GET'
+            });
+        }
+
+        if (endpoints.update) {
+            routes.push({
+                name: `${resource.name}:update`,
+                path: '/:id',
+                method: 'PUT'
+            });
+        }
+
+        if (endpoints.delete) {
+            routes.push({
+                name: `${resource.name}:delete`,
+                path: '/:id',
+                method: 'DELETE'
+            });
+        }
+
+        if (endpoints.list) {
+            routes.push({
+                name: `${resource.name}:list`,
+                path: '/list',
+                method: 'GET'
+            });
+        }
+
+        if (resource.custom_routes) {
+            resource.custom_routes.forEach(customRoute => {
+                routes.push({
+                    name: `${resource.name}:${customRoute.handler}`,
+                    path: customRoute.path,
+                    method: customRoute.method
+                });
+            });
+        }
+
+        return routes;
+    }
+
+    async assignRoutes(app: INestApplication, routesPackage: RWSHTTPRoutingEntry[], controllerList: Controller[]): Promise<IHTTProute[]> {
+        const controllerRoutes: IControllerRoutes = {
+            get: {}, post: {}, put: {}, delete: {}
+        };        
+
+        controllerList.forEach((controllerInstance: Controller) => {          
+            const controllerMetadata = this.getRouterAnnotations(controllerInstance.constructor as Controller);
+          
+            if(controllerMetadata) {            
+                Object.keys(controllerMetadata).forEach((key: string) => {
+                    if(controllerMetadata[key].annotationType !== 'Route') {
+                        return;    
+                    }
+                    this.setControllerRoutes(controllerInstance, controllerMetadata, controllerRoutes, key);
+                });
+            }
+        });      
+
+        const routes = this.flattenRoutes(routesPackage);
+
+        // Create dynamic controllers for each route
+        routes.forEach((route: IHTTProute) => {          
+            Object.keys(controllerRoutes).forEach((_method: string) => {
+                const actions = controllerRoutes[_method as keyof IControllerRoutes];                           
+                if(!actions[route.name]) {
+                    return;
+                }        
+                this.createRouteController(app, actions, route);
+            });
+        });
+
+        return routes;
+    }
+
+    private flattenRoutes(routesPackage: RWSHTTPRoutingEntry[]): IHTTProute[] {
+        let routes: IHTTProute[] = [];
+
+        routesPackage.forEach((item: RWSHTTPRoutingEntry) => {   
+            if ('prefix' in item && 'routes' in item && Array.isArray(item.routes)) {
+                routes = [...routes, ...item.routes.map((subRouteItem: IHTTProute): IHTTProute => ({
+                    path: item.prefix + subRouteItem.path,
+                    name: subRouteItem.name,
+                    method: subRouteItem.method
+                }))];
+            } else {
+                routes.push(item as IHTTProute);
+            }        
+        });  
+
+        return routes;
+    }
+
+    static responseTypeToMIME(responseType: string){
+        switch (responseType){
+        case 'html': return 'text/html';
+        default: return 'application/json';
+        }    
+    }
+
+    getRouterAnnotations(constructor: Controller): Record<string, {annotationType: string, metadata: any}> {    
+        return Reflect.getMetadata('routes', constructor) || {};
+    }
+
+    private createRouteController(app: INestApplication, actions: RouteEntry, route: IHTTProute) {
+        const [routeMethod, methodType, routeParams] = actions[route.name];
+        const configService = this.configService;
+        const consoleService = this.consoleService;
+
+        // Create a dynamic controller class
+        @NestController(route.path)
+        class DynamicController {
+            constructor(
+                private readonly configService: ConfigService,
+                private readonly consoleService: ConsoleService
+            ) {}
+
+            private prepareResponse(res: any, status: number, routeParams: IHTTProuteParams, output: any) {
+                if(routeParams.responseType === 'json' || !routeParams.responseType){                
+                    return { statusCode: status, ...output };
+                }                                              
+
+                if(routeParams.responseType === 'html' && this.configService.get('pub_dir')){          
+                    const filePath = path.join(this.configService.get('pub_dir'), output.template_name + '.html');
+                    return res.sendFile(filePath);
+                }
+
+                return { statusCode: status };
+            }
+
+            async handler(req: any, res: any) {
+                try {
+                    const controllerMethodReturn = await routeMethod({
+                        req,
+                        query: req.query,
+                        params: route.noParams ? [] : req.params,
+                        data: req.body,
+                        res
+                    });     
+
+                    const contentType = RouterService.responseTypeToMIME(routeParams.responseType);
+                    res.type(contentType);
+
+                    let status = 200;
+                    if(controllerMethodReturn instanceof RWSError){
+                        status = controllerMethodReturn.getCode();
+                    }
+
+                    return this.prepareResponse(res, status, routeParams, controllerMethodReturn);          
+                } catch(err: Error | RWSError | any) {   
+                    let errMsg;          
+                    let stack;
+
+                    if(err.printFullError){
+                        err.printFullError();
+                        errMsg = err.getMessage();
+                        stack = err.getStack();
+                    } else {
+                        errMsg = err.message;
+                        this.consoleService.error(errMsg);
+                        this.consoleService.log(err.stack); 
+                        stack = err.stack;      
+                        err.message = errMsg;     
+                    }                 
+
+                    const code = err.getCode ? err.getCode() : 500;
+              
+                    return this.prepareResponse(res, code, routeParams, {
+                        success: false,
+                        data: {
+                            error: {
+                                code,
+                                message: errMsg,
+                                stack
+                            }
+                        }
+                    });          
+                }
+            }
+        }
+
+        // Apply the appropriate method decorator
+        switch (route.method.toUpperCase()) {
+            case 'GET':
+                Get()(DynamicController.prototype, 'handler', Object.getOwnPropertyDescriptor(DynamicController.prototype, 'handler'));
+                break;
+            case 'POST':
+                Post()(DynamicController.prototype, 'handler', Object.getOwnPropertyDescriptor(DynamicController.prototype, 'handler'));
+                break;
+            case 'PUT':
+                Put()(DynamicController.prototype, 'handler', Object.getOwnPropertyDescriptor(DynamicController.prototype, 'handler'));
+                break;
+            case 'DELETE':
+                Delete()(DynamicController.prototype, 'handler', Object.getOwnPropertyDescriptor(DynamicController.prototype, 'handler'));
+                break;
+        }
+
+        // Register the controller with the application
+        const moduleRef = app.select(DynamicController);
+        moduleRef.get(DynamicController);
+    }
+
+    private setControllerRoutes(
+        controllerInstance: Controller, 
+        controllerMetadata: Record<string, {annotationType: string, metadata: any}>, 
+        controllerRoutes: IControllerRoutes, 
+        key: string
+    ): void {
+        const action: any = () => {}; // (controllerInstance as Controller).callMethod(key);
+        const meta = controllerMetadata[key].metadata;                                        
+        
+        switch(meta.method) {
+        case 'GET':
+            controllerRoutes.get[meta.name] = [action.bind(controllerInstance), 'get', meta.params, key]; 
+            break;
+
+        case 'POST':
+            controllerRoutes.post[meta.name] = [action.bind(controllerInstance), 'post', meta.params, key];
+            break;
+
+        case 'PUT':
+            controllerRoutes.put[meta.name] = [action.bind(controllerInstance), 'put', meta.params, key]; 
+            break;
+
+        case 'DELETE':
+            controllerRoutes.delete[meta.name] = [action.bind(controllerInstance), 'delete', meta.params, key];
+            break;  
+        }
+    }
+    
+    hasRoute(routePath: string, routes: IHTTProute[]): boolean {
+        return this.getRoute(routePath, routes) !== null;
+    }
+
+    getRoute(routePath: string, routes: IHTTProute[]): IHTTProute | null {
+        const foundRoute = routes.find((item: IHTTProute) => {
+            return item.path.indexOf(routePath) > -1 && !item.noParams;
+        });      
+
+        return foundRoute ? foundRoute : null;
+    }
+}
+
+export {
+    RouterService
+};
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/TraversalService.ts:
+87
+import path from 'path';
+import fs from 'fs';
+import { Injectable } from '../../nest';  
+
+@Injectable()
+class TraversalService {
+    getAllFilesInFolder(folderPath: string, ignoreFilenames: RegExp[] = [], recursive: boolean = false): string[] 
+    {
+        const files: string[] = [];
+  
+        function traverseDirectory(currentPath: string): void 
+        {
+            const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+  
+            entries.forEach(entry => {
+                const entryPath = path.join(currentPath, entry.name);
+  
+                if (entry.isFile()) {
+                    let pass = true;
+
+                    ignoreFilenames.forEach((regEx: RegExp) => {                        
+                        if(regEx.test(entryPath)){
+                            pass = false;
+                        }
+                    })
+
+                    if(pass){
+                        files.push(entryPath);
+                    }            
+                } else if (entry.isDirectory() && recursive) {
+                    traverseDirectory(entryPath);
+                }
+            });
+        }
+  
+        traverseDirectory(folderPath);
+
+        return files;
+    }
+}
+
+export {TraversalService};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/UtilsService.ts:
+83
+import TheService from './_service';
+import fs from 'fs';
+import path from 'path';
+import { rwsPath } from '@rws-framework/console';
+import { Injectable } from '../../nest';  
+
+import { SourceMapConsumer, RawSourceMap  } from 'source-map';
+
+@Injectable()
+class UtilsService {  
+    private _startTime: [number, number];
+
+    findRootWorkspacePath = rwsPath.findRootWorkspacePath;
+    findPackageDir = rwsPath.findPackageDir;
+
+    startExecTimeRecord()
+    {
+        this._startTime = process.hrtime() ;
+    }
+
+    endExecTimeRecord(): number
+    {
+
+        if(this._startTime === null){
+            return 0;
+        }
+
+        const elapsed = process.hrtime(this._startTime);   
+    
+        this._startTime = null;
+
+        return Math.round(elapsed[0] * 1000 + elapsed[1] / 1e6);
+    }
+
+    filterNonEmpty<T>(arr: T[]): T[]
+    {
+        return arr.filter((argElement: T) => argElement !== '' && typeof argElement !== 'undefined' && argElement !== null);
+    }
+
+    isInterface<T>(func: any): func is T {
+        return typeof func === 'function';
+    }
+
+    static getRWSVar(fileName: string): string | null
+    {
+        const packageDir = rwsPath.findRootWorkspacePath(process.cwd());    
+        const moduleCfgDir = `${packageDir}/node_modules/.rws`;
+
+        if(!fs.existsSync(`${moduleCfgDir}/${fileName}`)){
+            return;
+        }
+
+        try{
+            return fs.readFileSync(`${moduleCfgDir}/${fileName}`, 'utf-8');
+        } catch (e: any){
+            return null;
+        }
+    }   
+  
+    static setRWSVar(fileName: string, value: string)
+    {
+        const packageDir = rwsPath.findRootWorkspacePath(process.cwd());    
+        const moduleCfgDir = `${packageDir}/node_modules/.rws`;
+
+        if(!fs.existsSync(moduleCfgDir)){
+            fs.mkdirSync(moduleCfgDir);
+        }
+
+        if(fileName.indexOf('/') > -1){
+            const parts = fileName.split('/');
+            const file = parts.pop(); // Ostatni element to nazwa pliku
+            const dirPath = `${moduleCfgDir}/${parts.join('/')}`; 
+    
+            // Tworzymy wszystkie katalogi rekursywnie
+            fs.mkdirSync(dirPath, { recursive: true });
+        }
+
+        fs.writeFileSync(`${moduleCfgDir}/${fileName}`, value);
+    }
+
+    getRWSVar(fileName: string): string | null
+    {
+        return UtilsService.getRWSVar(fileName);
+    }   
+  
+    setRWSVar(fileName: string, value: string)
+    {
+        UtilsService.setRWSVar(fileName, value);
+    }
+
+    async getCurrentLineNumber(error: Error = null): Promise<number> {
+        if(!error){
+            error = new Error();
+        }
+        const stack = error.stack || '';
+        const stackLines = stack.split('\n');
+        const relevantLine = stackLines[1];
+
+        // Extract file path from the stack line
+        const match = relevantLine.match(/\((.*?):\d+:\d+\)/);
+        if (!match) return -1;
+        const filePath = match[1];
+
+        // Assuming the source map is in the same directory with '.map' extension
+        const sourceMapPath = `${filePath}.map`;    
+
+        // Read the source map
+        const sourceMapContent = fs.readFileSync(sourceMapPath, 'utf-8');    
+        const sourceMap: RawSourceMap = JSON.parse(sourceMapContent);
+        const consumer = await new SourceMapConsumer(sourceMap);
+
+        // Extract line and column number
+        const lineMatch = relevantLine.match(/:(\d+):(\d+)/);
+        if (!lineMatch) return -1;
+
+        const originalPosition = consumer.originalPositionFor({
+            line: parseInt(lineMatch[1]),
+            column: parseInt(lineMatch[2]),
+        });
+
+        return originalPosition.line;
+    }
+
+    detectPackageManager(): 'yarn' | 'npm'
+    {
+        // Sprawdzamy czy jest yarn.lock
+        const hasYarnLock = fs.existsSync(path.join(process.cwd(), 'yarn.lock'));
+        
+        // Sprawdzamy zmienne środowiskowe
+        const npmExecPath = process.env.npm_execpath || '';
+        const isYarnPath = npmExecPath.includes('yarn');
+        
+        // Sprawdzamy czy proces został uruchomiony przez yarn
+        const isYarnEnv = process.env.npm_config_user_agent?.includes('yarn');
+    
+        return (hasYarnLock || isYarnPath || isYarnEnv) ? 'yarn' : 'npm';
+    }
+}
+
+export {UtilsService};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/ZipService.ts:
+81
+import TheService from './_service';
+import { ConsoleService } from './ConsoleService';
+import { Injectable } from '../../nest';  
+
+import path from 'path';
+import fs from 'fs';
+
+import { BlobReader, BlobWriter, ZipWriter } from '@zip.js/zip.js';import { Error500 } from '../errors';
+
+interface IZipParams {
+    recursive?: boolean
+    format?: string
+    destpath?: string;
+    ignore?: string[]
+}
+
+@Injectable()
+class ZipService {
+    constructor(private consoleService: ConsoleService){}
+
+    async addFileToZip(zipWriter: ZipWriter<Blob>, filePath: string, zipPath: string, params: IZipParams){
+        const data = new Uint8Array(fs.readFileSync(filePath));
+        const blob = new Blob([data]);
+        const reader = new BlobReader(blob);
+        await zipWriter.add(zipPath, reader);
+    }
+
+    async addDirectoryToZip(zipWriter: ZipWriter<Blob>, dirPath: string, zipPath: string, params: IZipParams){
+        const items = fs.readdirSync(dirPath);
+        for (const item of items) {
+            const fullPath = path.join(dirPath, item);
+            const stat = fs.statSync(fullPath);
+            if (stat.isDirectory() && params.recursive) {
+                await this.addDirectoryToZip(zipWriter, fullPath, `${zipPath}/${item}`, params);
+            } else if (stat.isFile()) {
+                await this.addFileToZip(zipWriter, fullPath, `${zipPath}/${item}`, params);
+            }
+        }
+    }
+
+    async createArchive(outputPath: string, sourcePath: string, params: IZipParams = { recursive: true }): Promise<string> {
+        const writer = new BlobWriter();
+        const zipWriter = new ZipWriter(writer);
+
+        try {
+            await this.addDirectoryToZip(zipWriter, sourcePath, outputPath, params);
+            await zipWriter.close();
+    
+            // Assuming you want to save the Blob to a file
+            const blob = await writer.getData();
+            fs.writeFileSync(outputPath, Buffer.from(await blob.arrayBuffer()));
+    
+            this.consoleService.log(`${this.consoleService.color().green('[RWS Lambda Service]')} ZIP created at: ${outputPath}`);
+            return outputPath;
+        } catch (e: Error | any) {
+            throw new Error500('ZIP process error: ' + e.message);
+        }
+    }    
+
+    listFilesInDirectory(directoryPath: string): string[] {
+        const files = fs.readdirSync(directoryPath);
+
+        const filePaths: string[] = [];
+    
+        files.forEach(file => {
+            const fullPath = path.join(directoryPath, file);
+            const stats = fs.statSync(fullPath);
+    
+            if (stats.isFile()) {
+                filePaths.push(fullPath);
+            }
+        });
+
+        return filePaths;
+    }
+}
+
+export { IZipParams, ZipService };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/_service.ts:
+79
+export default abstract class TheService{
+    _RELOADABLE: boolean = false;
+
+    constructor() {
+    }
+
+    protected static _instances: { [key: string]: TheService } | null = {};
+
+    public static getSingleton<T extends new (...args: any[]) => TheService>(this: T): InstanceType<T> {
+        const className = this.name;
+
+        if (!TheService._instances[className]) {
+            TheService._instances[className] = new this();
+        }
+
+        return TheService._instances[className] as InstanceType<T>;
+    }
+
+    public getReloadable(): string | null {
+        return (this as any).constructor._RELOADABLE || this._RELOADABLE;
+    }
+
+    public reloadService<T extends new (...args: any[]) => TheService>(this: T, ...params: any[]): InstanceType<T> {    
+        const className = this.name;
+        TheService._instances[className] = new this(...params);        
+        return TheService._instances[className] as InstanceType<T>;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/services/index.ts:
+76
+export {
+    
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/IAppConfig.ts:
+78
+
+import { DynamicModule } from '@nestjs/common';
+import { RWSModuleType } from './IRWSModule';
+import { IRWSResource } from './IRWSResource';
+
+export default interface IAppConfig {   
+    features?: {
+        ws_enabled?: boolean
+        routing_enabled?: boolean
+        test_routes?: boolean
+        ssl?: boolean
+        auth?: boolean
+    } 
+    mongo_url: string
+    mongo_db: string
+    port: number
+    ws_port?: number
+    domain: string
+    test_port?: number
+    test_ws_port?: number
+    ssl_cert: string
+    ssl_key: string
+    secret_key: string
+    user_class: any
+    user_models: any[]
+    resources: IRWSResource[],    
+    ws_routes: any
+    http_routes: any
+    front_routes?: Record<string, unknown>[],
+    aws_lambda_region?: string
+    aws_access_key?: string
+    aws_secret_key?: string
+    aws_lambda_role?: string
+    aws_lambda_bucket?: string
+    pub_dir?: string
+    cors_domain?: string,
+    static_route?: string
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/IAuthUser.ts:
+77
+export default interface IAuthUser {
+    jwt_token: string
+    mongoId: string
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/IDbUser.ts:
+75
+import Model from "../models/_model";
+
+export default interface IDbUser {    
+    mongoId: string
+    loadDbUser: () => Promise<void>
+    db: Model<any>;    
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/IRWSModule.ts:
+78
+import { Type, DynamicModule, ForwardReference } from '@nestjs/common';
+import IAppConfig from './IAppConfig';
+
+export type NestModuleType = Type<any> | DynamicModule | Promise<DynamicModule> | ForwardReference;
+export type NestModuleTypes = Array<NestModuleType>;
+
+export interface IRWSModule {  
+}
+
+export type RWSModuleType = NestModuleType | IRWSModule;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/IRWSResource.ts:
+80
+import RWSModel from "../models/_model";
+
+export interface IRWSResource {
+    name: string;
+    model: typeof RWSModel<any>;
+    endpoints?: {
+      create?: boolean;
+      read?: boolean;
+      update?: boolean;
+      delete?: boolean;
+      list?: boolean;
+    };
+    custom_routes?: {
+      path: string;
+      method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+      handler: string;
+    }[];
+  }
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/ITheGateway.ts:
+79
+import { Socket } from 'socket.io';
+import { OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { OnModuleInit } from '@nestjs/common';
+
+export interface ITheGateway extends OnGatewayConnection, OnGatewayDisconnect, OnModuleInit {
+    socket: Socket<any, any, any, any>
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws/src/types/ServerTypes.ts:
+79
+import HTTP from 'http';
+import HTTPS from 'https';
+import { ITheGateway } from './ITheGateway';
+import IDbUser from './IDbUser';
+import { IHTTProute } from '../routing/routes';
+
+type WsRoutes = {
+    [eventName: string]: new (data: any) => ITheGateway;
+};
+
+type UserTokens = {
+    [socketId: string]: string;
+};
+
+type JWTUsers = {
+    [socketId: string]: Partial<IDbUser>;
+};
+
+type CookieType = {[key: string]: string};
+
+interface IInitOpts {        
+    wsRoutes?: WsRoutes,
+    httpRoutes?: IHTTProute[],
+    pub_dir?: string,
+    authorization?: boolean
+    transport?: 'polling' | 'websocket'
+    domain?: string
+    cors_domain?: string,
+    onAuthorize?: <PassedUser extends IDbUser>(user: PassedUser, authorizationScope: 'ws' | 'http') => Promise<void>,
+    port_ws?: number
+    port_http?: number
+    ssl_enabled?: boolean
+}
+
+type RWSServer = HTTP.Server | HTTPS.Server;
+type ServerStarter = (callback?: () => void) => Promise<void>;
+type RWSServerPair<T> = { instance: T, starter: ServerStarter };
+type ServerControlSet<T> = { websocket: RWSServerPair<T>, http: RWSServerPair<T> };
+
+type ServerOpts = {
+    authorization?: boolean, 
+    transport?: string, 
+    onAuthorize?: <T extends IDbUser>(user: T, authorizationScope: 'ws' | 'http') => Promise<void>
+  }
+
+export {
+    WsRoutes,
+    UserTokens,
+    JWTUsers,
+    CookieType,
+    IInitOpts,
+    RWSServer,
+    ServerStarter,
+    RWSServerPair,
+    ServerControlSet,
+    ServerOpts
+}
+

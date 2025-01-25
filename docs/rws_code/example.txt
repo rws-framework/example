@@ -1,0 +1,2282 @@
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/app/app.module.ts:
+88
+import { Module } from '@nestjs/common';
+
+import { HomeController } from '../controllers/home.controller';
+import { UserController } from '../controllers/user.controller';
+
+import { WSGateway } from '../gateways/WSGateway';
+
+import { UtilsService, RWSFillService } from '@rws-framework/server';
+import { AuthService } from '../services/AuthService';
+import { ConfigService } from '@nestjs/config';
+import { WebsocketManagerService } from '@rws-framework/nest-interconnectors/src/backend/services/WebsocketManagerService';
+
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
+import { NotFoundExceptionFilter } from '../filters/not-found.filter';
+import { SerializeInterceptor } from '../interceptors/serialize.interceptor';
+import { NestModuleData } from '@rws-framework/server/exec/src/application/cli.module';
+
+
+@Module({})
+export class TheAppModule {
+  static forRoot(parentModule: NestModuleData){
+    const processedImports = parentModule ? [parentModule] : [];
+
+    return {
+      module: TheAppModule,
+      imports: processedImports,
+      controllers:[
+        HomeController,   
+        UserController
+      ],
+      providers: [
+        AuthService,
+        ConfigService,
+        UtilsService,
+        RWSFillService,
+        WebsocketManagerService,
+        WSGateway,
+        {
+          provide: APP_INTERCEPTOR,
+          useClass: SerializeInterceptor,
+        },
+        {
+          provide: APP_FILTER,
+          useClass: NotFoundExceptionFilter,
+        }
+      ],
+      exports: [
+        WebsocketManagerService
+      ]
+    }
+  }
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/cli.ts:
+77
+import 'reflect-metadata';
+
+import { RWSCliBootstrap } from "@rws-framework/server";
+import { config, IAppModuleOpts } from './config/config'
+
+import { RWSConfigInjector } from "@rws-framework/server/nest";
+import { AuthService } from './services/AuthService';
+
+import { AdminStartCommand } from './commands/adminadd.command';
+
+@RWSConfigInjector(config())
+class AppCliBootstrap  extends RWSCliBootstrap {}
+
+if (require.main === module) {    
+    AppCliBootstrap.run<IAppModuleOpts>(config, {
+      providers: [
+        AuthService,
+        AdminStartCommand
+      ]
+    }).catch((error) => {
+        console.error('Failed to run CLI:', error);
+        process.exit(1);
+    });
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/commands/adminadd.command.ts:
+99
+
+
+import 'reflect-metadata';
+
+import chalk from 'chalk';
+
+import { Injectable } from '@nestjs/common';
+import { DBService, ProcessService } from '@rws-framework/server';
+import { ConfigService } from '@nestjs/config';
+import { AuthService } from '../services/AuthService';
+import { ConsoleService, UtilsService } from '@rws-framework/server';
+import { RWSBaseCommand, RWSCommand } from '@rws-framework/server/src/commands/_command';
+import { ParsedOptions } from '@rws-framework/server/exec/src/application/cli.module';
+
+import User from '../models/User';
+
+@Injectable()
+@RWSCommand({name: 'admin-add', description: 'Systems init command.'})
+export class AdminStartCommand extends RWSBaseCommand {
+  constructor(
+    protected readonly utilsService: UtilsService,
+    protected readonly consoleService: ConsoleService,
+    protected readonly configService: ConfigService,
+    protected readonly processService: ProcessService,          
+    protected readonly dbService: DBService,
+    protected readonly authService: AuthService,
+  ) {    
+    super(utilsService, consoleService, configService, processService, dbService);    
+  }    
+
+  async run(
+    passedParams: string[],
+    options: ParsedOptions
+  ): Promise<void> {
+    const [login, pass] = passedParams;
+    this.consoleService.log(this.consoleService.color().green(`[RWS] adding admin (${login}/${pass})... `));    
+
+    const exUser: User = await User.findOneBy({ conditions: { username: login } });
+    
+    if(exUser){
+      console.log(chalk.yellow(`User ${login} already exists`));
+      return;
+    }
+
+    const hashedPassword = await this.authService.hashPassword(pass);
+    const user = new User({
+      username: login,
+      passwd: hashedPassword,
+      created_at: new Date(),
+      active: true
+    });
+
+    console.log({user})
+
+    await user.save();
+
+    console.log('Admin added.')
+  }
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/config/ConfigHelper.ts:
+93
+import { readIniFile } from 'read-ini-file';
+import path from 'path';
+import fs from 'fs';
+import {Injectable} from "@rws-framework/server/nest";
+import { rwsPath } from "@rws-framework/console"
+import dotenv from 'dotenv';
+
+type TheConfig = { [key: string]: string };
+
+Injectable()
+class ConfigHelper {
+  private envData: TheConfig; // Add type assertion here
+  private envFilePath: string;
+
+  constructor() {
+    this.initEnv();
+  }
+
+  private initEnv(){
+    const cfgDir = this.findConfigFileFolder();    
+    
+    this.envFilePath = `${cfgDir}/.env`;    
+
+    if(!fs.existsSync(cfgDir + '/.env')){
+      throw new Error(`Config file ${cfgDir}/.env not found`);
+    }
+
+    this.envData = this.parseDotEnv(this.envFilePath);
+
+    if(fs.existsSync(cfgDir + '/.env.local')){
+      this.envFilePath = cfgDir + '/.env.local';
+      this.envData = Object.assign(this.envData, this.parseDotEnv(this.envFilePath));      
+    }
+  }
+
+  private parseDotEnv(path: string): TheConfig {
+    try {
+      const result = dotenv.config({ path: path });
+      if (result.error) {
+        throw result.error;
+      }
+      return result.parsed as TheConfig;
+    } catch (error: Error | any) {
+      throw new Error(`Error parsing .env file: ${error.message}`);
+    }    
+  }
+
+  public findConfigFileFolder(folder_path:string = null): string | null
+  {
+    const rwsDir = rwsPath.findPackageDir(process.cwd());
+
+    return path.resolve(rwsDir, '..');
+  }
+
+  private mergeDeep<T>(target: T | any, source: T  | any): T 
+  {
+    const isObject = (obj: any) => obj && typeof obj === 'object';
+
+    if (!isObject(target) || !isObject(source)) {
+        return source;
+    }
+
+    Object.keys(source).forEach(key => {
+        const targetValue = target[key];
+        const sourceValue = source[key];
+
+        if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+            target[key] = targetValue.concat(sourceValue);
+        } else if (isObject(targetValue) && isObject(sourceValue)) {
+            target[key] = this.mergeDeep(Object.assign({}, targetValue), sourceValue);
+        } else {
+            target[key] = sourceValue;
+        }
+    });
+
+    return target;
+  }
+  
+
+  get = (key: keyof TheConfig) => {   
+    return this.envData[key];
+  };
+}
+
+export { ConfigHelper };
+
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/config/config.ts:
+87
+import IAppConfig from "@rws-framework/server/src/types/IAppConfig";
+import { ConfigHelper } from "./ConfigHelper";
+import httpRoutes from '../routing/routes';
+
+import { models } from '../models';
+
+export interface IAppModuleOpts extends IAppConfig { 
+ jwt_expiration_days: number
+}
+
+const configHelper = new ConfigHelper();
+
+function config(): IAppModuleOpts
+{
+    return {       
+        resources:[], //@TODO         
+        features: {
+            routing_enabled: true,
+            ws_enabled: true,
+            ssl: false,
+            auth: false
+        },
+        user_class: null,
+        user_models: models,
+        mongo_url: configHelper.get('DATABASE_URL'),
+        mongo_db: configHelper.get('MONGODB_DB'),
+        port: parseInt(configHelper.get('PORT')) || 3000,        
+        ws_port: parseInt(configHelper.get('WS_PORT')) || 3001,        
+        pub_dir: configHelper.get('PUBLIC_DIR'),
+        domain: configHelper.get('DOMAIN'),
+        cors_domain: '*',
+        secret_key: configHelper.get('JWT_SECRET'),    
+        jwt_expiration_days: parseInt(configHelper.get('JWT_EXPIRATION_DAYS')),
+        ssl_cert: null,
+        ssl_key: null,            
+        ws_routes: {        
+        },
+        http_routes: httpRoutes,
+    };
+}
+
+
+export { config };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/controllers/home.controller.ts:
+101
+import { AppConfigService } from '@rws-framework/server';
+import { AuthService } from '../services/AuthService';
+import { Body, Get } from '@nestjs/common';
+import { IUserLoginApiResponse } from './response-types/IHomeApiResponse'
+import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
+import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import IUser from '../models/interfaces/IUser';
+import User from '../models/User';
+
+type ITalkApiResponse = {
+    success: boolean
+    data: { wsId: string, response: string, error?: Error | any }
+};
+
+@RWSController('home')
+export class HomeController {   
+    constructor(private authService: AuthService){}
+
+    @RWSRoute('home.login')    
+    async process(        
+        @Body() body: { username: string, passwd: string }
+    ): Promise<IUserLoginApiResponse> {
+        
+        try {
+            // Validate input
+            if (!body.username || !body.passwd) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Username and password are required'
+                };
+            }
+    
+            // Authenticate user
+            const authResult = await this.authService.authenticate(body.username, body.passwd);
+            
+            if (!authResult.success) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Invalid credentials'
+                };
+            }
+
+            // Return successful login response with user data and token
+            return {
+                success: true,
+                data: {
+                    user: authResult.user,
+                    token: authResult.token
+                }
+            };
+        } catch (error: Error | any) {
+            return {
+                success: false,
+                data: null,
+                error: error.message || 'An error occurred during login'
+            };
+        }
+    }
+
+    @RWSRoute('home.api-authorize')    
+    async authorizeAPI( @Body() body: { apikey: string }): Promise<IUserLoginApiResponse>
+    {      
+            
+            try {                
+                const user: IUser = await User.findOneBy({conditions: { apiKeys: {
+                    some: {
+                        id: body.apikey
+                    }
+                } }});
+
+                if(!user){
+                    return {
+                        success: false,
+                        data: null,
+                        error: 'Wrong API key'
+                    };
+                }
+
+                const token = this.authService.generateToken(user);
+    
+                return {
+                    success: true,
+                    data: {
+                        user: user,
+                        token: token
+                    }
+                };
+            } catch (error: Error | any) {
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'An error occurred during login'
+                };
+            }
+    }   
+    
+    @RWSRoute('home.check')    
+    async authCheck( @Body() body: { token: string }): Promise<IUserLoginApiResponse>
+    {      
+            
+            try {
+                if (!body.token) {
+                    return {
+                        success: false,
+                        data: null,
+                        error: 'Token is required'
+                    };
+                }
+        
+                const authResult = await this.authService.verifyToken(body.token);
+                
+                if (!authResult) {
+                    return {
+                        success: false,
+                        data: null,
+                        error: 'Invalid credentials'
+                    };
+                }
+
+                const user: IUser = await this.authService.getUserFromToken(body.token);
+    
+                return {
+                    success: true,
+                    data: {
+                        user: user,
+                        token: body.token
+                    }
+                };
+            } catch (error: Error | any) {
+                return {
+                    success: false,
+                    data: null,
+                    error: error.message || 'An error occurred during login'
+                };
+            }
+    }    
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/controllers/response-types/IHomeApiResponse.ts:
+117
+import IUser from "../../models/interfaces/IUser"
+
+export interface IUserLoginApiResponse {
+    success: boolean,
+    data: {
+        user: IUser | null,
+        token: string | null
+    } | null,
+    error?: string
+}
+
+export interface IUserLoginApiPayload {
+    username: string,
+    passwd: string
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/controllers/response-types/IUserApiResponse.ts:
+117
+import IApiKey from "../../models/interfaces/IApiKey"
+import IUser from "../../models/interfaces/IUser"
+
+export interface IUserListApiResponse {
+    data: IUser[]
+}
+
+export interface IUserCreateApiResponse {
+    success: boolean
+    data: IUser | string
+}
+
+export interface IUserCreateKeyApiResponse {
+    success: boolean
+    data: IApiKey | string
+}
+
+export interface IUserCreateApiPayload {
+    username: string;
+    passwd: string;
+    r_passwd: string
+}
+
+export interface IUserDeleteApiResponse {
+    success: boolean
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/controllers/user.controller.ts:
+101
+import { AppConfigService } from '@rws-framework/server';
+
+import { IUserCreateApiPayload, IUserCreateApiResponse, IUserDeleteApiResponse, IUserListApiResponse, IUserCreateKeyApiResponse } from './response-types/IUserApiResponse';
+import { Body } from '@nestjs/common';
+import IUser from '../models/interfaces/IUser';
+import { Param } from '@nestjs/common';
+import { createHash } from 'crypto';
+import { AuthService } from '../services/AuthService';
+import ApiKey from '../models/ApiKey';
+import { v4 as uuid } from 'uuid';
+
+import User from '../models/User';
+
+
+import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
+import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import { Auth, AuthUser } from '../guards/auth.guard';
+
+@RWSController('user')
+export class UserController { 
+    private readonly SALT_ROUNDS = 10;
+  
+    constructor(private authService: AuthService){}
+
+
+    @RWSRoute('user.index')
+    @Auth()
+    async index(@AuthUser() loggedUser: User): Promise<IUserListApiResponse>
+    {
+        const users: IUser[] = await User.findBy();
+        return { data: users }
+    }
+
+    
+    @RWSRoute('user.create')
+    @Auth()
+    async create(        
+      @Body() body: IUserCreateApiPayload
+    ): Promise<IUserCreateApiResponse> {    
+      
+      if(body.passwd !== body.r_passwd){
+        return {
+          success: false,
+          data: 'Passwords do not match'
+        };
+      }
+
+      if(await User.findOneBy({ conditions: {username: body.username }})){
+        return {
+          success: false,
+          data: 'User already exists'
+        };
+      }
+      
+      const hashedPassword: string = await this.authService.hashPassword(body.passwd);
+
+      const user: User = new User({
+        username: body.username,
+        passwd: hashedPassword,          
+        active: true
+      });
+
+      await user.save();
+
+      return {
+        success: true,
+        data: user
+      };
+    }
+
+    @RWSRoute('user.createkey')
+    @Auth()
+    async createKey(        
+      @Param('id') id: string
+    ): Promise<IUserCreateKeyApiResponse> {    
+  
+
+      const user: User = await User.find(id);         
+
+      const keyModel: ApiKey = new ApiKey({ keyval: 're-' + uuid() });
+      keyModel.user = user;
+      
+      await keyModel.save();            
+
+      return {
+        success: true,
+        data: keyModel
+      };
+    }
+
+    @RWSRoute('user.delete')
+    @Auth()
+    async delete(@Param('id') id: string): Promise<IUserDeleteApiResponse> {                      
+        await User.delete({ id })
+
+        return {
+          success: true
+        }
+    } 
+    
+    @RWSRoute('user.deletekey')
+    @Auth()
+    async deleteKey(@Param('id') id: string): Promise<IUserDeleteApiResponse> {                      
+        await ApiKey.delete({ id })
+
+        return {
+          success: true
+        }
+    }  
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/error/error400.ts:
+88
+import { RWSErrorCodes } from '@rws-framework/server';
+
+const {RWSError} = RWSErrorCodes;
+
+export class Error400 extends RWSError{
+    name = '400 bad payload.';
+
+    constructor(params: any | null = null){
+        super(400, `Payload is not valid.`, params);        
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/filters/not-found.filter.ts:
+98
+import { ExceptionFilter, Catch, NotFoundException, ArgumentsHost } from '@nestjs/common';
+import { Response } from 'express';
+import * as path from 'path';
+
+@Catch(NotFoundException)
+export class NotFoundExceptionFilter implements ExceptionFilter {
+  catch(exception: NotFoundException, host: ArgumentsHost) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest();
+
+    // Keep the original URL but serve the static 404.html page
+    response.sendFile(
+      path.join(process.cwd(), process.env.PUBLIC_DIR, '404.html'),
+      (err) => {
+        if (err) {
+          response.sendFile(
+            path.join(process.cwd(), '..', 'frontend','public', 'index.html')
+          );
+        }
+      }
+    );
+  }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/gateways/WSGateway.ts:
+92
+import {
+  WebSocketServer,
+  SubscribeMessage,
+  MessageBody,
+  ConnectedSocket,
+} from '@nestjs/websockets';
+
+import { Socket } from 'socket.io';
+import { RWSJSONMessage, RWSGateway, RWSFillService } from '@rws-framework/server';
+import { ConfigService } from '@nestjs/config';
+
+import { IWSData, IWSResponse } from './response-types/IWSGateWay';
+import { WebsocketManagerService } from '@rws-framework/nest-interconnectors/src/backend/services/WebsocketManagerService';
+import { Injectable } from '@rws-framework/server/nest';
+
+
+@Injectable()
+export class WSGateway extends RWSGateway {
+  constructor(
+    public appConfigService: ConfigService,
+    public rwsFillService: RWSFillService,    
+    public wsManagerService: WebsocketManagerService  
+  ) {
+    super(appConfigService, rwsFillService);
+  }
+
+  @SubscribeMessage('ws_message_event_name')
+  async handleChat(
+    @MessageBody() dataString: string,
+    @ConnectedSocket() socket: Socket,
+  ): Promise<void> {
+    const jsonData: RWSJSONMessage = this.getJson(dataString);    
+    const payload: IWSData = jsonData.msg;
+    const wsId: string | null | undefined = payload.wsId;
+
+    if(!wsId){
+      return;
+    }
+
+    try {  
+      // Send response
+      this.emitMessage<IWSResponse>('ws_response_event_name' + wsId, socket, {
+        success: true,
+        data: {
+          wsId: wsId
+        }
+      });      
+    } catch (error) {
+      console.error('Error in gateway message:', error);
+      this.throwError('ws_response_error_' + wsId, socket, error);
+    }
+  }
+
+  sendFile(): void
+  {
+
+  }
+
+  handleConnection(socket: Socket): void {
+    this.wsManagerService.addClient(socket);    
+  }
+
+  handleDisconnect(socket: Socket): void {   
+  }
+}  
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/gateways/response-types/IWSGateWay.ts:
+108
+export type IWSData = {
+    wsId: string;
+    data: string
+  };
+  
+export type IWSResponse = {
+  success: boolean;
+  data: { wsId: string; error?: Error | any };
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/guards/auth.guard.ts:
+91
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException, applyDecorators, UseGuards, createParamDecorator } from '@nestjs/common';
+import { AuthService } from '../services/AuthService';
+import User from '../models/User';
+
+
+@Injectable()
+export class AuthGuard implements CanActivate {
+  constructor(private authService: AuthService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const token = this.extractTokenFromHeader(request);
+    
+    if (!token) {
+      throw new UnauthorizedException();
+    }
+
+    try {     
+      const isAuthenticated = await this.authService.verifyToken(token)
+      
+      if (!isAuthenticated) {
+        throw new UnauthorizedException();
+      }
+
+      // Add user to request object
+      request.user = this.authService.getUserFromToken(token);
+
+      return true;
+    } catch (error) {
+      throw new UnauthorizedException();
+    }
+  }
+
+  private extractTokenFromHeader(request: any): string | undefined {
+    const [type, token] = request.headers.authorization?.split(' ') ?? [];
+    return type === 'Bearer' ? token : undefined;
+  }
+}
+
+export function Auth() {
+  return applyDecorators(
+    UseGuards(AuthGuard)
+  );
+}
+
+export const AuthUser = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): User => {
+    const request = ctx.switchToHttp().getRequest();
+    return request.user;
+  },
+);
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/index.ts:
+79
+import { config } from './config/config'
+import { RWSConfigInjector, RWSBootstrap } from "@rws-framework/server/nest";
+
+@RWSConfigInjector(config())
+class AppBootstrap extends RWSBootstrap {}
+
+import { TheAppModule } from "./app/app.module";
+
+AppBootstrap
+    .run(TheAppModule, { authorization: false, transport: 'websocket' })
+    .then(() => {});
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/interceptors/serialize.interceptor.ts:
+108
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { map } from 'rxjs/operators';
+
+@Injectable()
+export class SerializeInterceptor implements NestInterceptor {
+  // List of keys to ignore during serialization
+  private readonly ignoredKeys = new Set([
+    'dbService',
+    'configService',
+    '_client',
+    '_originalClient',
+    'connection',
+    // Add any other keys you want to ignore
+  ]);
+
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    return next.handle().pipe(
+      map(data => {
+        if (data === undefined || data === null) {
+          return null; // Return null for undefined/null data
+        }
+        
+        const serialized = JSON.stringify(data, this.getCircularReplacer());
+        // Only parse if we have a valid JSON string
+        return serialized === undefined ? null : JSON.parse(serialized);
+      }),
+    );
+  }
+
+  private getCircularReplacer() {
+    const seen = new WeakSet();
+    return (key: string, value: any) => {
+      // First check if this is a key we want to ignore
+      if (this.ignoredKeys.has(key)) {
+        return undefined; // This will remove the key from the output
+      }
+
+      // Handle null/undefined values
+      if (value === undefined) {
+        return null; // Convert undefined to null for valid JSON
+      }
+
+      // Then handle circular references
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return null; // Convert circular references to null
+        }
+        seen.add(value);
+      }
+      return value;
+    };
+  }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/models/ApiKey.ts:
+87
+import { RWSannotations, RWSModel } from '@rws-framework/server';
+
+import 'reflect-metadata';
+import User from './User';
+import IApiKey from './interfaces/IApiKey';
+const { RWSTrackType, Relation } = RWSannotations.modelAnnotations;
+
+class ApiKey extends RWSModel<ApiKey> implements IApiKey {
+    static _RELATIONS = {
+        user: true,
+    };
+
+    @Relation(() => User, true)
+    user: User;
+
+    @RWSTrackType(Object)
+    keyval: string;
+
+    @RWSTrackType(Date, { required: true })
+    created_at: Date;
+  
+    @RWSTrackType(Date)
+    updated_at: Date;
+
+    static _collection = 'api_keys';
+
+    constructor(data?: IApiKey) {   
+        super(data);    
+
+        if(!this.created_at){
+            this.created_at = new Date();
+        }    
+
+        this.updated_at = new Date();
+    }    
+}
+
+export default ApiKey;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/models/User.ts:
+85
+import { RWSannotations, RWSModel } from '@rws-framework/server';
+
+import IUser from './interfaces/IUser';
+import 'reflect-metadata';
+
+import ApiKey from './ApiKey';
+import IApiKey from './interfaces/IApiKey';
+const { RWSTrackType, InverseRelation } = RWSannotations.modelAnnotations;
+
+class User extends RWSModel<User> implements IUser {
+    @RWSTrackType(String)
+    username: string;
+
+    @RWSTrackType(String)
+    passwd: string;
+
+    @RWSTrackType(Boolean)
+    active: boolean;
+
+    @RWSTrackType(Date, { required: true })
+    created_at: Date;
+  
+    @RWSTrackType(Date)
+    updated_at: Date;
+
+    @InverseRelation(() => ApiKey, () => User)
+    apiKeys: IApiKey[];
+
+    static _collection = 'user';
+
+    static _RELATIONS = {
+        apiKeys: true
+    };
+
+    static _CUT_KEYS = ['passwd'];
+
+    constructor(data?: IUser) {   
+        super(data);    
+
+        if(!this.created_at){
+            this.created_at = new Date();
+        }      
+    }    
+
+    addMessage(message: string){
+        this.messages.push(message);
+    }
+}
+
+export default User;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/models/index.ts:
+86
+import ApiKey from "./ApiKey";
+import User from "./User";
+
+export const models = [ User, ApiKey];
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/models/interfaces/IApiKey.ts:
+99
+interface IApiKey {
+  id?: string
+  keyval: string
+  created_at?: Date
+  updated_at?: Date
+}
+
+export default IApiKey;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/models/interfaces/IUser.ts:
+97
+import IApiKey from "./IApiKey";
+
+interface IUser {
+  id?: string
+  username: string
+  passwd: string
+  created_at?: Date
+  updated_at?: Date
+  active: boolean
+  apiKeys?: IApiKey[]
+}
+
+export default IUser;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/pkgImport.ts:
+83
+import { ILLMChunk } from '@rws-framework/ai-tools';
+
+export {
+    ILLMChunk
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/routing/actions/homeActions.ts:
+101
+import { IHTTProute } from "@rws-framework/server/src/routing/routes";
+
+export const homeRoutes: IHTTProute[] = [   
+    {
+        name: 'home.login',
+        path: '/login',
+        method: 'POST'                
+    },
+    {
+        name: 'home.check',
+        path: '/check',
+        method: 'POST'                
+    },
+    {
+        name: 'home.api-authorize',
+        path: '/authorize',
+        method: 'POST'                
+    }
+]         
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/routing/actions/userActions.ts:
+101
+import { IHTTProute } from "@rws-framework/server/src/routing/routes";
+
+export const userRoutes: IHTTProute[] = [                
+    {
+        name: 'user.index',
+        path: '/',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.create',
+        path: '/create',  
+        method: 'POST'                
+    },
+    {
+        name: 'user.createkey',
+        path: '/createkey',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.deletekey',
+        path: '/deletekey/:id',  
+        method: 'GET'                
+    },
+    {
+        name: 'user.delete',
+        path: '/delete/:id',  
+        method: 'GET'                
+    }                               
+]
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/routing/routes.ts:
+88
+import { RWSHTTPRoutingEntry } from '@rws-framework/server/src/routing/routes';
+import { homeRoutes } from './actions/homeActions';
+import { userRoutes } from './actions/userActions';
+
+
+export default [
+    {
+        prefix: '/api',
+        controllerName: 'home',
+        routes: homeRoutes
+    },
+    {
+        prefix: '/api/users',
+        controllerName: 'user',
+        routes: userRoutes
+    },
+
+] as RWSHTTPRoutingEntry[];
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/services/AuthService.ts:
+94
+// deepgram-live.service.ts
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import IUser from '../models/interfaces/IUser';
+import User from '../models/User';
+import * as crypto from 'crypto';
+import * as jwt from 'jsonwebtoken';
+
+export type AuthResponse<T> = {
+  success: boolean,
+  user: T | null,
+  token: string | null
+}
+
+export type DecodedToken = {
+  sub: string,
+  username: string,
+  iat: number,
+  exp: number
+}
+
+@Injectable()
+export class AuthService implements OnModuleInit {
+  private readonly logger = new Logger(AuthService.name);
+  constructor(private configService: ConfigService) {}
+
+  private JWT_SECRET: string
+  private JWT_EXPIRATION: number
+
+  async onModuleInit() {
+    this.JWT_SECRET = this.configService.get('secret_key');
+    this.JWT_EXPIRATION = this.configService.get('jwt_expiration_days');
+
+    this.logger.log('Auth service initialized');
+  }
+
+  async authenticate(login: string, passwd: string): Promise<AuthResponse<IUser>>
+  {
+    try {
+      const user: IUser = await User.findOneBy({
+        conditions: {
+          username: login
+        },
+        fullData: true
+      });
+
+      if(!user){
+        console.error('No user', login);
+        return {
+          success: false,
+          token: null,
+          user: null
+        }
+      }
+
+      
+      // Verify password
+      const isPasswordValid = await this.verifyPassword(passwd, user.passwd);
+
+      if (!isPasswordValid) {
+        console.error('Invalid password for user', login);
+          return {
+              success: false,
+              token: null,
+              user: null
+          };
+      }
+
+      // Generate JWT token
+      const token = this.generateToken(user);
+
+
+      // Remove password from user object before sending
+      const { passwd: _, ...userWithoutPassword } = user;
+
+      return {
+          success: true,
+          token: token,
+          user: userWithoutPassword as IUser
+      };
+    }
+    catch(error: Error | any){
+      console.error('Authentication error:', error);
+      return {
+          success: false,
+          token: null,
+          user: null
+      };
+    }
+  }
+
+  async hashPassword(password: string): Promise<string> {
+    const salt = this.JWT_SECRET;
+    // Hash the password with the salt using SHA256
+    const hash = crypto.createHash('sha256')
+      .update(password + salt)
+      .digest('hex');
+    // Combine salt and hash with a separator
+    return `${salt}:${hash}`;
+  }
+
+  // Helper method to verify passwords
+  private async verifyPassword(plainPassword: string, storedHash: string): Promise<boolean> {
+    try {      
+      const computedHash = await this.hashPassword(plainPassword);
+      return computedHash === storedHash;
+    } catch (error) {
+      this.logger.error('Password verification failed:', error);
+      return false;
+    }
+  }
+
+  // Generate JWT token
+  generateToken(user: IUser): string {
+    const expirationInSeconds = this.JWT_EXPIRATION * 24 * 60 * 60;
+
+    return jwt.sign(
+      {
+        sub: user.id,
+        username: user.username
+      },
+      this.JWT_SECRET,
+      {
+        expiresIn: expirationInSeconds
+      }
+    );
+  }
+
+  // Verify JWT token
+  async verifyToken(token: string): Promise<any> {
+    try {
+      return jwt.verify(token, this.JWT_SECRET);
+    } catch (error) {
+      this.logger.error('Token verification failed:', error);
+      return null;
+    }
+  }
+
+  async decodeToken(token: string): Promise<DecodedToken | null> {
+    try {
+      // Verify and decode the token
+      const decoded = await this.verifyToken(token);
+      if (!decoded) {
+        return null;
+      }
+
+      return decoded as DecodedToken;
+    } catch (error) {
+      this.logger.error('Token decoding failed:', error);
+      return null;
+    }
+  }
+
+  // Get user data from token
+  async getUserFromToken(token: string): Promise<IUser | null> {
+    try {
+      const decoded = await this.decodeToken(token);
+      if (!decoded) {
+        return null;
+      }
+
+      // Find user by id from decoded token
+      const user = await User.findOneBy({
+        conditions: {
+          id: decoded.sub
+        },
+        fullData: true
+      });
+
+      if (!user) {
+        return null;
+      }
+
+      user.passwd = null;
+      
+      return user;
+
+    } catch (error) {
+      this.logger.error('Failed to get user from token:', error);
+      return null;
+    }
+  }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/services/UtilsService.ts:
+95
+import fs from 'fs';
+import path from 'path';
+
+import { v4 as uuid } from 'uuid';
+
+async function findClosestFolder(folderName: string, currentPath: string): Promise<string | null> 
+{
+    return new Promise((resolve, reject) => {
+        const possibleFolderPath = path.join(currentPath, folderName);
+        if (fs.existsSync(possibleFolderPath) && fs.statSync(possibleFolderPath).isDirectory()) {
+            resolve(possibleFolderPath);
+        }
+    
+        const parentPath = path.dirname(currentPath);
+        if (parentPath === currentPath) {
+            resolve(null); // Reached the root directory without finding the folder
+        }
+    
+        findClosestFolder(folderName, parentPath).then((res) => {
+            resolve(res);
+        });
+    });
+}
+
+function uniqid(prefix: string = null): string
+{
+    return (prefix ? `${prefix}_` : '') + uuid();
+}
+
+export default {
+    findClosestFolder,
+    uniqid
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/backend/src/types/PrismaConditional.ts:
+97
+export type PrismaConditional<T = any> = T | {
+    contains: T
+    mode: string
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/_notifier.ts:
+84
+import { NotifyUiType, NotifyLogType } from '@rws-framework/client';
+//ts-expect-error no-types
+// import alertify from 'alertifyjs';
+
+export default function (message: string, logType: NotifyLogType = 'info', uiType: NotifyUiType = 'notification', onConfirm: (params: any) => void = (params: any) => {}) {
+    switch(uiType){
+    case 'notification':
+        let notifType = 'success';
+
+        if(logType === 'error'){
+            notifType = 'error';
+        }
+
+        if(logType === 'warning'){
+            notifType = 'warning';
+        }
+
+        // alertify.notify(message, notifType, 5, onConfirm);
+        return;
+    case 'alert':
+        // alertify.alert('AI Notification', message, onConfirm);
+        return;    
+    case 'silent':
+        if(logType == 'warning'){
+            console.warn(message);
+        }else if(logType == 'error'){
+            console.error(message);
+        }else{
+            console.log(message);
+        }            
+        return;    
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/application/_initComponents.ts:
+102
+import { DefaultLayout } from '../components/default-layout/component';
+import { RWSClientInstance } from '@rws-framework/client/src/client';
+import { RWSTable } from '../components/rws-table/component'
+import { RWSModal } from '../components/rws-modal/component'
+
+import { RouterComponent } from '@rws-framework/browser-router';
+
+export default () => {
+    RouterComponent;
+    DefaultLayout;
+    RWSClientInstance.defineAllComponents();
+
+    RWSTable;
+    RWSModal;
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/backendImport.ts:
+88
+import type { IUserLoginApiPayload, IUserLoginApiResponse } from '../../backend/src/controllers/response-types/IHomeApiResponse';
+import type { IDeepGramApiResponse, ITranscriptionData } from '../../backend/src/controllers/response-types/IDeepGramApiResponse';
+import type { IDeepGramWSData, IDeepGramWSResponse } from '../../backend/src/gateways/response-types/IDeepgramGateWay';
+import type { IUserListApiResponse, IUserCreateApiResponse, IUserCreateApiPayload, IUserDeleteApiResponse } from '../../backend/src/controllers/response-types/IUserApiResponse';
+import type IUser from '../../backend/src/models/interfaces/IUser';
+import type ITranscription from '../../backend/src/models/interfaces/ITranscription';
+
+export type {
+    ITranscription,
+    IUser,
+    IDeepGramApiResponse,
+    IDeepGramWSData, IDeepGramWSResponse,
+    ITranscriptionData,
+    IUserListApiResponse,
+    IUserCreateApiResponse,
+    IUserCreateApiPayload,
+    IUserDeleteApiResponse,
+    IUserLoginApiPayload, 
+    IUserLoginApiResponse
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/default-layout/component.ts:
+110
+import { RWSViewComponent, RWSView, observable, RWSInject } from '@rws-framework/client';
+
+import EV from '../../events/events';
+import { _ROUTING_EVENT_NAME, IRoutingEvent } from '@rws-framework/browser-router';
+import { SiteMenu } from '../site-menu/component';
+import StorageService, { StorageServiceInstance } from '../../services/StorageService';
+import { IUser, IUserLoginApiResponse } from '../../backendImport';
+import { LoginForm } from '../../components/login-form/component';
+
+LoginForm;
+SiteMenu;
+
+@RWSView('default-layout', { ignorePackaging: true })
+class DefaultLayout extends RWSViewComponent {  
+  @observable currentPage: string;
+  @observable menuOpen: boolean = true;
+  @observable isLogged: boolean = false;
+  @observable currentUrl: string = window.location.pathname;
+
+  constructor(@RWSInject(StorageService) private storageService: StorageServiceInstance){
+    super();
+  }
+
+  async connectedCallback(): Promise<void> 
+  {
+      super.connectedCallback();    
+    
+      this.$emit(_ROUTING_EVENT_NAME, (route_event: IRoutingEvent) => {
+          this.currentPage = route_event.routeName;
+      });
+
+      this.$emit(EV.menu.toggle, (route_event: IRoutingEvent) => {
+          this.menuOpen = !this.menuOpen;
+      });
+
+      this.on<{item: string}>('routing.url.changed', (event) => {
+          const url = event.detail.item;
+      
+          this.currentUrl = url;      
+      });
+
+      this.on<{success: boolean}>('user_login', (event) => {
+        const user: IUser | null = this.storageService.getUser();
+    
+        if(user && user.id){
+            this.isLogged = true;
+        }           
+      });
+
+      this.on('logout', (event) => {
+        this.storageService.clearUser();
+        this.apiService.setToken(null);
+        
+        this.isLogged = false;       
+      });
+
+      const storedJWT = this.storageService.getToken();
+
+      if(storedJWT){
+          const userData: IUserLoginApiResponse = await this.apiService.back.post('home.check', { token: storedJWT });
+
+          if(userData.success){                           
+              this.onLogin(userData.data.user, userData.data.token);
+          }else{              
+              this.storageService.clearUser();              
+              this.apiService.setToken(null);
+          }
+      }
+  }
+
+  async onLogin(user: IUser, token: string)
+    {
+        this.storageService
+            .setUser(user)
+            .setToken(token);
+
+        this.apiService.setToken(token);    
+        
+        this.isLogged = true;
+
+        this.$emit('user_login', { success: true });
+  }
+}
+
+DefaultLayout.defineComponent();
+
+export { DefaultLayout };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/line-splitter/component.ts:
+109
+import { RWSView, RWSViewComponent, observable, attr } from '@rws-framework/client';
+
+import { html, ViewTemplate } from '@microsoft/fast-element';
+
+interface ILineInfo {
+  content: string,
+  found: boolean
+}
+
+const returnTag = (cnt: string, found: boolean = true) => {
+    return {
+        content: cnt,
+        found
+    };
+};
+
+@RWSView('line-splitter')
+class LineSplitter extends RWSViewComponent {
+  @observable text: string = '';
+  @observable content: string | ViewTemplate;
+
+  @attr allowedTags = '';
+  @attr addClass = '';
+
+  private allowedHTMLTags: string[] = ['dl', 'dt', 'dd', 'br', 'blockquote', 'span', 'p', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'strong', 'i', 'small', 'u'];
+
+  static makeRegex = (tagName: string): RegExp => {
+      return new RegExp(`<${tagName}>(.*?)</${tagName}>`, 'gs');
+  };
+
+  static _allowed_tags: { [key: string]: (cnt: string, key: string) => ILineInfo } = {
+      'blockquote': (content: string, key: string): ILineInfo => {
+          const regex = LineSplitter.makeRegex(key);
+
+          const matches = content.match(regex);
+      
+          if (matches) {
+              console.log('f',matches[0]);
+              return returnTag(content.replace(regex, `<${key}><div class="quote-cnt">$1</div></${key}>`));   
+          }else{
+              return returnTag(content, false);
+          }      
+      }
+  };
+
+  parseTags(line: string): string | ViewTemplate
+  {    
+      let output: string = line.trim();
+
+      this.allowedHTMLTags = this.allowedHTMLTags.concat(this.allowedTags.split(','));
+
+      output = this.enforceAllowedTags(output);
+      output = output.replace(/\n\n/g, '\n');
+
+      // console.log('preparse', line);
+      //   let found = false;
+
+      for(const tag in LineSplitter._allowed_tags){             
+          const lineInfo: ILineInfo = LineSplitter._allowed_tags[tag](output, tag);
+
+          if(lineInfo.found){        
+              output = lineInfo.content;
+              //   found = true;
+          }
+      }    
+
+      output = output.replace(/<.*>([\s\S]*?)<\/.*>/g, (match: string) => {
+          return match.replace(/\n/g, '');
+      });
+
+      output = output.replace(/\n/g, '<br/>');
+
+      output = output.replace(/<\/p><br\/>/g, '</p>');
+
+      output = output.replace(/<\/h1><br\/>/g, '</h1>');
+      output = output.replace(/<\/h2><br\/>/g, '</h2>');
+      output = output.replace(/<\/h3><br\/>/g, '</h3>');
+
+      output = output.replace(/<br\/><h1>/g, '<h1>');
+      output = output.replace(/<br\/><h2>/g, '<h2>');
+      output = output.replace(/<br\/><h3>/g, '<h3>');
+
+      return html`${output}`;
+  }
+
+  private enforceAllowedTags(htmlText: string): string
+  {
+      // Create a regular expression pattern to match HTML tags
+      const tagPattern = /<\s*\/?\s*([^\s>/]+)(\s+[^>]*)?>/g;
+
+      // Replace any tags in the htmlText that are not in allowedHTMLTags array
+      const sanitizedText = htmlText.replace(tagPattern, (match, tag, attributes) => {
+          const lowerCaseTag = tag.toLowerCase();
+
+          if (this.allowedHTMLTags.includes(lowerCaseTag)) {
+              return match; // Return the original tag if it's allowed
+          } else {
+              // Replace the disallowed tag with an empty string
+              return '';
+          }
+      });
+
+      return sanitizedText;
+  }
+
+  splitLines(): void
+  {    
+      this.content = this.parseTags(this.text);    
+  }
+
+  textChanged(oldVal: string, newVal: string)
+  {    
+      if(newVal){
+          this.splitLines();
+      }
+  }
+
+  addClassChanged(oldVal: string, newVal: string)
+  {
+      if(newVal){
+          this.addClass = newVal;
+      }
+  }
+}
+
+LineSplitter.defineComponent();
+
+export { LineSplitter };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/loader/component.ts:
+102
+import { RWSViewComponent } from '@rws-framework/client';
+import {css, html} from '@microsoft/fast-element';
+const styles = css`.loader {
+    width: 74px;
+    height: 29.382px;
+    display: grid;
+    top: 50%;
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .loader:before {
+    content: "";
+    grid-area: 1/1;
+    background: #FD135A;
+    --c1:conic-gradient(from 150deg at top, #000 60deg, #0000 0);
+    --c2:conic-gradient(from -30deg at bottom, #000 60deg, #0000 0);
+    --s:27px calc(27px*0.866);
+    clip-path: polygon(17px 0, calc(100% - 17px) 0, 100% 100%, 0 100%);
+    -webkit-mask: var(--c1) left 6px top 4px, var(--c2) center, var(--c1) right 6px top 4px, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    -webkit-mask-repeat: no-repeat;
+    animation: l6 2s infinite both;
+  }
+  .loader:after {
+    content: "";
+    grid-area: 1/1;
+    background: #FD135A;
+    --c1:conic-gradient(from 150deg at top, #000 60deg, #0000 0);
+    --c2:conic-gradient(from -30deg at bottom, #000 60deg, #0000 0);
+    --s:27px calc(27px*0.866);
+    clip-path: polygon(17px 0, calc(100% - 17px) 0, 100% 100%, 0 100%);
+    -webkit-mask: var(--c1) left 6px top 4px, var(--c2) center, var(--c1) right 6px top 4px, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    -webkit-mask-repeat: no-repeat;
+    animation: l6 2s infinite both;
+    transform: rotate(180deg);
+    transform-origin: 50% 99%;
+    animation-delay: 0.5s;
+  }
+  
+  @keyframes l6 {
+    0% {
+      -webkit-mask-size: 0 0, 0 0, 0 0, auto;
+    }
+    8.33% {
+      -webkit-mask-size: var(--s), 0 0, 0 0, auto;
+    }
+    16.67% {
+      -webkit-mask-size: var(--s), var(--s), 0 0, auto;
+    }
+    25%, 50% {
+      -webkit-mask-size: var(--s), var(--s), var(--s), auto;
+    }
+    58.33% {
+      -webkit-mask-size: 0 0, var(--s), var(--s), auto;
+    }
+    66.67% {
+      -webkit-mask-size: 0 0, 0 0, var(--s), auto;
+    }
+    75%, 100% {
+      -webkit-mask-size: 0 0, 0 0, 0 0, auto;
+    }
+  }`;
+
+const template = html`<div class="loader"></div>`;
+
+class Loader extends RWSViewComponent {
+
+    static definition = { name: 'the-loader', styles, template };
+  
+    connectedCallback(): void {
+        super.connectedCallback();
+    }
+}
+
+Loader.defineComponent();
+
+export { Loader };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/login-form/component.ts:
+106
+import { RWSViewComponent, RWSView, observable, attr } from '@rws-framework/client';
+import { IUser, IUserLoginApiPayload, IUserLoginApiResponse } from '../../backendImport';
+
+@RWSView('users-login-form')
+class LoginForm extends RWSViewComponent {      
+    @observable onLogin: (user: IUser, token: string) => void;
+    @attr submitLabel: string = 'Log in.'
+
+    connectedCallback(): void 
+    {
+        super.connectedCallback();  
+    }
+
+    async sendForm(event: Event){               
+        const formData: IUserLoginApiPayload = {
+            username: (this.$('sl-input[name="username"]') as HTMLInputElement).value,
+            passwd: (this.$('sl-input[name="password"]') as HTMLInputElement).value,            
+        };
+
+        const serverResponse: IUserLoginApiResponse = await this.apiService.back.post('home.login', formData);
+
+        if(serverResponse.success && serverResponse.data?.token){
+            this.onLogin(serverResponse.data?.user as IUser, serverResponse.data.token);
+            
+        }else{
+            alert('Login failed!');
+        }
+    }
+}
+
+LoginForm.defineComponent();
+
+export { LoginForm };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/rws-modal/component.ts:
+105
+import { RWSViewComponent, RWSView, observable } from '@rws-framework/client';
+
+@RWSView('rws-modal')
+class RWSModal extends RWSViewComponent {      
+    closeModal: () => void
+    connectedCallback(): void {
+        super.connectedCallback();        
+    }
+}
+
+RWSModal.defineComponent();
+
+export { RWSModal };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/rws-table/component.ts:
+105
+import { RWSViewComponent, RWSView, observable } from '@rws-framework/client';
+import { IUser } from '../../backendImport';
+import { IUserCreateApiPayload, IUserCreateApiResponse } from 'backend/src/controllers/response-types/IUserApiResponse';
+
+export interface IFlexTableColumn {
+    key: string;
+    header: string;
+    formatter?: (value: any) => string;
+}
+
+export type ActionType = {
+    key: string,
+    label: string,
+    variant: string,
+    handler: (id: string) => Promise<void>
+}
+ 
+@RWSView('rws-table')
+class RWSTable extends RWSViewComponent {      
+    @observable columns: IFlexTableColumn[] = [];
+    @observable data: any[] = [];
+
+    @observable actions: ActionType[] = [];
+
+
+    connectedCallback(): void {
+        super.connectedCallback();        
+    }
+}
+
+RWSTable.defineComponent();
+
+export { RWSTable };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/site-menu/component.ts:
+105
+import { RWSViewComponent, RWSView } from '@rws-framework/client';
+import {  observable  } from '@microsoft/fast-element';
+
+
+interface ILink {
+  label: string;
+  url: string;
+}
+
+@RWSView('site-menu', { ignorePackaging: true })
+class SiteMenu extends RWSViewComponent {
+
+  @observable links: ILink[] = [  
+      { label: 'Users', url: '/' },
+  ];
+
+  handleClick(event: Event, link: ILink): void {
+      if(event){
+          event.preventDefault();
+      }      
+      
+    
+      this.$emit('routing.url.changed', {
+          item: link.url
+      });
+  }
+
+  logout(){
+    this.$emit('logout');
+  }
+}
+
+SiteMenu.defineComponent();
+
+export { SiteMenu, ILink };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/components/user-form/component.ts:
+105
+import { RWSViewComponent, RWSView, observable, attr } from '@rws-framework/client';
+import { IUser } from '../../backendImport';
+import { IUserCreateApiPayload, IUserCreateApiResponse } from 'backend/src/controllers/response-types/IUserApiResponse';
+
+@RWSView('users-create-form')
+class UsersForm extends RWSViewComponent {      
+    @observable onCreate: (user: IUser) => void;
+    @attr submitLabel: string = 'Zaloguj się.'
+
+    connectedCallback(): void 
+    {
+        super.connectedCallback();  
+    }
+
+    async sendForm(event: Event){               
+        const formData: IUserCreateApiPayload = {
+            username: (this.$('sl-input[name="username"]') as HTMLInputElement).value,
+            passwd: (this.$('sl-input[name="password"]') as HTMLInputElement).value,
+            r_passwd: (this.$('sl-input[name="r_password"]') as HTMLInputElement).value,
+        };
+
+        const serverResponse: IUserCreateApiResponse = await this.apiService.back.post('user.create', formData);
+
+        if(!serverResponse.success){
+
+            alert(serverResponse.data);
+
+            return;
+        }else{
+            this.onCreate(serverResponse.data as IUser);
+        }
+    }
+}
+
+UsersForm.defineComponent();
+
+export { UsersForm };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/events/events.ts:
+88
+export default {
+    item:{
+        click: 'chat.item:click'
+    },
+    context: {
+        change: 'chat.context:change',
+        convo_id_set: 'chat.context:id_set'
+    },
+    message: {
+        send: 'chat.message:send',
+        receive: 'chat.message:receive'
+    },
+    model: {
+        set: 'chat.model:set'
+    },
+    menu: {
+        toggle: 'app.menu:toggle',
+        route_choose: 'app.menu:route_choose,'
+    },
+    trainer:{
+        chapter: {
+            check: 'trainer.chapter:check',
+        }
+    },
+    global: {
+        chat: {
+            toggled: 'global.chat:toggled',            
+        }
+    }
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/index.ts:
+80
+import RWSClient, { RWSContainer, RWSPlugin } from '@rws-framework/client';
+import { RWSBrowserRouter, BrowserRouterOpts  } from '@rws-framework/browser-router';
+import { RWSWebsocketsPlugin, WSOptions  } from '@rws-framework/nest-interconnectors';
+import backendRoutes from '../../backend/src/routing/routes';
+import initComponents from './application/_initComponents';
+import './styles/main.scss';
+
+
+import '@shoelace-style/shoelace/dist/shoelace.js';
+
+
+import routes from './routing/routes';
+import notifierMethod from './_notifier';
+import { setBasePath } from '@shoelace-style/shoelace';
+
+async function initializeApp() {
+    const theClient = RWSContainer().get(RWSClient);
+    
+    
+
+    theClient.setNotifier(notifierMethod);
+    theClient.addPlugin<BrowserRouterOpts>(RWSBrowserRouter);
+    theClient.addPlugin<WSOptions>([RWSWebsocketsPlugin, {
+        enabled: true,
+        auto_notify: true
+    }]);
+
+    theClient.assignClientToBrowser();             
+
+    theClient.onInit(async () => {
+        RWSPlugin.getPlugin<RWSBrowserRouter>(RWSBrowserRouter).addRoutes(routes);
+        initComponents();
+    });    
+
+    setBasePath('/css');
+
+    console.log('envs', process.env.BACKEND_URL);
+
+    theClient.start({
+        backendRoutes,
+        backendUrl: process.env.BACKEND_URL,
+        wsUrl: process.env.WS_URL,
+        partedDirUrlPrefix: '/js',
+        parted: false //unfinished - working but makes big files for now. 
+    });
+}
+
+initializeApp().catch(console.error);
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/pages/users/component.ts:
+96
+import { RWSViewComponent, RWSView, observable, ApiService } from '@rws-framework/client';
+import type { IUser } from '../../backendImport';
+import moment from 'moment';
+import { UsersForm } from '../../components/user-form/component';
+import { IUserCreateApiResponse, IUserCreateKeyApiResponse, IUserListApiResponse } from '../../../../backend/src/controllers/response-types/IUserApiResponse';
+import IApiKey from 'backend/src/models/interfaces/IApiKey';
+
+UsersForm;
+
+@RWSView('page-users')
+class UsersPage extends RWSViewComponent {  
+    @observable userList: IUser[] = [];
+    @observable selectedUser: IUser = null;
+    @observable tableColumns = [
+        { key: 'username', header: 'Username' },
+        { 
+            key: 'active', 
+            header: 'Active',
+            formatter: (value: boolean) => value ? 'YES' : 'NO'
+        },
+        { 
+            key: 'created_at', 
+            header: 'Created',
+            formatter: (date: Date) => moment(date).format('DD.MM.YYYY')
+        }
+    ];
+
+    connectedCallback(): void 
+    {
+        super.connectedCallback();    
+        this.getUsers();
+    }
+
+    async getUsers()
+    {
+        const response: IUserListApiResponse = await this.apiService.back.get('user.index');
+        this.userList = response.data;     
+        
+        console.log(this.userList);
+    }
+
+    async deleteUser(id: string){
+        if(confirm('Do you want to delete user?')){
+            await this.apiService.back.get('user.delete', { routeParams: {
+                id
+            } });
+            this.getUsers();
+        }        
+    }
+
+    async showAPIKeys(id: string){
+        this.selectedUser = this.userList.find(item => item.id === id);        
+    }
+
+    async generateAPIKey(id: string){
+        if(confirm('Want to generate API key?')){
+            const apiKeyResponse: IUserCreateKeyApiResponse = await this.apiService.back.get('user.createkey', { routeParams: {
+                id
+            } });        
+
+            if(apiKeyResponse.success){
+                this.userList = this.userList.map((user: IUser) => {
+                    if(user.id === id){
+                        const userKeys = user.apiKeys;
+
+                        user.apiKeys = [
+                            ...userKeys,
+                            apiKeyResponse.data as IApiKey
+                        ];
+
+                        this.selectedUser = {...user};
+                    }
+
+                    return user;
+                })
+            }
+        }
+    }
+
+    async deleteAPIKey(id: string){
+        if(confirm('Do you want to delete api key?')){
+            await this.apiService.back.get('user.deletekey', { routeParams: {
+                id
+            } });
+                   
+            const user_id = this.selectedUser.id;
+            await this.getUsers();
+            this.selectedUser = {...this.userList.find(list_user => list_user.id === user_id)};
+        }        
+    }
+
+    addToUserList(user: IUser){
+        this.getUsers();
+    }
+
+    closeModal()
+    {
+        this.selectedUser = null;
+        this.getUsers();
+    }
+}
+
+UsersPage.defineComponent();
+
+export { UsersPage };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/routing/routes.ts:
+89
+
+
+import { renderRouteComponent } from '@rws-framework/browser-router';
+import { UsersPage } from '../pages/users/component';
+
+export default {
+    '/': renderRouteComponent('Users page', UsersPage)
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/services/DateService.ts:
+95
+import { RWSService } from '@rws-framework/client';
+import moment, { Moment, unitOfTime } from 'moment';
+import 'moment/locale/en-gb';
+
+moment.locale('en-gb');
+
+class DateOperator {
+    private _date: Date;
+    private _moment: Moment;
+
+    constructor(date: DateInputType){
+        if(moment.isMoment(date)){
+            this._date = date.toDate();
+        }else if(typeof date ==='string'){
+            this._date = new Date(date);
+        }else{
+            this._date = date;
+        }
+        
+        this._moment = moment(this._date);
+    }
+
+    format(format: string = 'd.m.Y H:mm:ss'){
+        return this._moment.format(format);
+    }
+    
+}
+
+type DateInputType =  Date | Moment | string;
+
+class DateService extends RWSService {
+    use(date: DateInputType){
+        return new DateOperator(date);
+    }
+
+    diff(newerDate: DateInputType, olderDate: DateInputType, outputUnit: unitOfTime.Diff = 'days'): number {
+        const momentNewer: Moment = DateService.makeMoment(newerDate);
+        const momentOlder: Moment = DateService.makeMoment(olderDate);
+
+        return momentNewer.diff(momentOlder, outputUnit);
+    }
+
+    static makeMoment(input: DateInputType): Moment
+    {
+        if (moment.isMoment(input)){
+            return input as Moment;
+        }
+
+        return moment(input);
+    }
+}
+
+export default DateService.getSingleton();
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/services/MicService.ts:
+94
+import { RWSService } from '@rws-framework/client';
+
+interface IMicConfig {
+    sampleRate?: number;
+    channelCount?: number;
+    deviceId?: string
+}
+
+class MicService extends RWSService {
+    private stream: MediaStream | null = null;
+    private mediaRecorder: MediaRecorder | null = null;
+    private chunks: Blob[] = [];
+    private isRecording: boolean = false;
+    private devices: MediaDeviceInfo[] = [];
+
+    private config: IMicConfig = {
+        sampleRate: 16000,
+        channelCount: 1,
+        deviceId: null
+    };
+
+    private streamingCallback: (data: Blob) => void = null;
+
+    setMicStreamCallback(callback: (data: Blob) => void): void
+    {   
+        this.streamingCallback = callback;
+    }
+
+    onStreamChunk(data: Blob): void
+    {        
+        if(this.streamingCallback !== null){this.streamingCallback(data);}
+    }
+
+    async getAudioDevices(): Promise<MediaDeviceInfo[]> {
+        try {
+            await navigator.mediaDevices.getUserMedia({ audio: true }); // Request permission
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            this.devices = devices.filter(device => device.kind === 'audioinput');
+            return this.devices;
+        } catch (error) {
+            console.error('Error getting audio devices:', error);
+            return [];
+        }
+    }
+
+    async initialize(config?: IMicConfig): Promise<boolean> {
+        try {
+            this.config = { ...this.config, ...config };
+            
+            const constraints = {
+                audio: {
+                    deviceId: this.config.deviceId ? { exact: this.config.deviceId } : undefined,
+                    sampleRate: this.config.sampleRate,
+                    channelCount: this.config.channelCount,
+                    echoCancellation: true,
+                    noiseSuppression: true
+                }
+            };
+
+            this.stream = await navigator.mediaDevices.getUserMedia(constraints);
+            return true;
+        } catch (error) {
+            console.error('Error initializing microphone:', error);
+            return false;
+        }
+    }    
+
+    startRecording(): boolean {
+        if (!this.stream || this.isRecording) {
+            return false;
+        }
+
+        this.chunks = [];
+        this.mediaRecorder = new MediaRecorder(this.stream, {
+            mimeType: 'audio/webm;codecs=opus',
+            audioBitsPerSecond: 128000
+        });
+
+        this.mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                this.chunks.push(event.data);
+                
+                this.onStreamChunk(event.data);
+            }
+        };
+
+        this.mediaRecorder.start(100);
+        this.isRecording = true;
+        return true;
+    }
+
+    stopRecording(): Blob | null {
+        if (!this.mediaRecorder || !this.isRecording) {
+            return null;
+        }
+
+        this.mediaRecorder.stop();
+        this.isRecording = false;
+
+        const audioBlob = new Blob(this.chunks, { type: 'audio/webm' });
+        this.chunks = [];
+        return audioBlob;
+    }
+
+    getStream(): MediaStream | null {
+        return this.stream;
+    }
+
+    isInitialized(): boolean {
+        return this.stream !== null;
+    }
+
+    close(): void {
+        if (this.isRecording) {
+            this.stopRecording();
+        }
+
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = null;
+        }
+    }
+}
+
+export default MicService.getSingleton();
+export { MicService as MicServiceInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/services/StorageService.ts:
+98
+import { RWSService } from '@rws-framework/client';
+import { IUser } from '../backendImport';
+
+class StorageService extends RWSService {
+    set(key: string, value: string): StorageService 
+    {
+        localStorage.setItem(key, value);
+        return this;
+    }
+
+    setUser(user: IUser): StorageService 
+    {
+        this.set('jwt_user', JSON.stringify(user));
+        return this;
+    }
+
+    setToken(token: string): StorageService 
+    {
+        this.set('jwt_token', token);
+        return this;
+    }
+
+    get(key: string): string | null 
+    {
+        return localStorage.getItem(key);
+    }
+
+    getUser(): IUser | null 
+    {
+        const item = localStorage.getItem('jwt_user');
+
+        if(!item || item === null || item === ''){
+            return null;
+        }
+
+        return JSON.parse(item) as IUser;
+    }
+
+    getToken(): string | null 
+    {
+        return localStorage.getItem('jwt_token');
+    }
+
+
+    clear(key: string): StorageService
+    {
+        localStorage.removeItem(key);
+        return this;
+    }
+    clearUser(): StorageService
+    {
+        this.clear('jwt_token').clear('jwt_user');
+
+        return this;
+    }
+}
+
+export default StorageService.getSingleton();
+export { StorageService as StorageServiceInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/example/frontend/src/strings.ts:
+82
+export default {
+    osha: {
+        preview_info: 'This is a preview feature. Please let us know how you rate the experience.',
+        safety_info : 'Our AI may display inaccurate or offensive information which does not reflect our views, so double-check its responses. Your conversations are logged and reviewed for improvements, don\'t enter anything you wouldn\'t want reviewed or used.'
+    }    
+};
+

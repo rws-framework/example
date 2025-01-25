@@ -1,0 +1,2878 @@
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/cfg/_storage.d.ts:
+79
+interface Storage {
+    _loaded: boolean;
+    data: {
+        [key: string]: any;
+    };
+}
+
+declare const _STORAGE: Readonly<Storage>;
+
+declare function get(key: string): any | null;
+declare function getAll(): any;
+declare function init(json: any): void;
+declare function has(key: string): boolean;
+declare function isLoaded(): boolean;
+
+export {
+    get,
+    getAll,
+    has,
+    init,
+    isLoaded
+};
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/foundation/rws-foundation.d.ts:
+92
+// fast-foundation.d.ts
+import {DI, Container, Key, Registration , InterfaceSymbol} from '@microsoft/fast-foundation/dist/dts/di/di';
+import { FoundationElement, FoundationElementDefinition, FoundationElementRegistry, OverrideFoundationElementDefinition } from '@microsoft/fast-foundation/dist/dts/foundation-element/foundation-element';
+
+export { 
+    DI, Container, Key, Registration , InterfaceSymbol,
+    FoundationElement, FoundationElementDefinition, FoundationElementRegistry, OverrideFoundationElementDefinition
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/service_worker/src/_service_worker.ts:
+99
+import IRWSUser from '../../src/types/IRWSUser';
+import RWSContainer from '../../src/components/_container';
+
+//@4DI
+import { Container } from '../../src/components/_container';
+
+type SWMsgType = {
+    command: string,
+    asset_type?: string,
+    params: any
+};
+
+abstract class RWSServiceWorker<UserType extends IRWSUser> {
+    protected DI: Container;
+    protected user: UserType = null;
+    protected ignoredUrls: RegExp[] = [];    
+    protected regExTypes: { [key: string]: RegExp };  
+
+    public workerScope: ServiceWorkerGlobalScope;
+
+    protected static _instances: { [key: string]: RWSServiceWorker<IRWSUser> } | null = {};
+
+    onInit(): Promise<void> { return; }   
+
+    onInstall(): Promise<void> { return; }
+    onActivate(): Promise<void> { return; }
+
+    constructor(workerScope: ServiceWorkerGlobalScope, DI: Container){   
+        this.DI = DI;             
+        this.workerScope = workerScope;
+
+        this.onInit().then(() => {
+            this.workerScope.addEventListener('install', () => {
+                console.log('Service Worker: Installed');
+    
+                this.onInstall();
+            });
+    
+            this.workerScope.addEventListener('activate', () => {
+                console.log('[SW] Service Worker: Activated'); 
+                
+                this.onActivate();
+    
+                return workerScope.clients.claim();
+            });
+        });
+    }       
+
+    sendMessageToClient = (clientId: string, payload: any) => {
+        return this.workerScope.clients.get(clientId)
+            .then((client: any) => {
+                if (client) {
+                    client.postMessage(payload);
+                }
+            });
+    };
+
+    getUser(): UserType
+    {
+        return this.user;
+    }
+
+    setUser(user: UserType): RWSServiceWorker<UserType>
+    {
+        this.user = user;        
+
+        return this;
+    }
+
+    static create<T extends new (...args: any[]) => RWSServiceWorker<IRWSUser>>(this: T, workerScope: ServiceWorkerGlobalScope): InstanceType<T> 
+    {
+        const className = this.name;
+
+        if (!RWSServiceWorker._instances[className]) {            
+            RWSServiceWorker._instances[className] = new this(workerScope, RWSContainer());
+        }
+
+        return RWSServiceWorker._instances[className] as InstanceType<T>;
+    }
+}
+
+export default RWSServiceWorker;
+
+export { SWMsgType };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/client/components.ts:
+86
+import RWSWindow, { RWSWindowComponentRegister } from "../types/RWSWindow";
+import { RWSClientInstance } from "../client";
+import RWSViewComponent, { IWithCompose } from "../components/_component";
+import { RWSPlugin } from "../plugins/_plugin";
+type RWSInfoType = { components: string[] };
+
+async function loadPartedComponents(this: RWSClientInstance): Promise<RWSInfoType> {
+    this.assignClientToBrowser();        
+    
+    return new Promise(async (resolve: (res: RWSInfoType) => void, reject: (res: Error | unknown) => void) => {        
+
+        const componentParts: RWSInfoType = await this.apiService.get<RWSInfoType>(this.appConfig.get('partedDirUrlPrefix') + '/rws_info.json');        
+        const loadedComponents = [];
+
+        document.addEventListener(RWSViewComponent._EVENTS.component_define, (event: Event) => {
+            const customEvent = event as CustomEvent<string>;            
+
+            loadedComponents.push(customEvent.detail);                           
+        });
+
+        let compList = '';
+        
+        componentParts.components.forEach((componentName: string, key: number) => {
+            const partUrl = `${this.appConfig.get('partedDirUrlPrefix')}/${this.appConfig.get('partedPrefix')}.${componentName}.js`;           
+    
+            compList += `  - \x1b[1m${componentParts.components[key]}:\x1b[0m component (${partUrl}) \n`;
+    
+            const script: HTMLScriptElement = document.createElement('script');
+            script.async = true;
+            script.src = partUrl;     
+            script.type = 'text/javascript';
+            document.body.appendChild(script);
+        }); 
+    
+        console.info(`\x1b[1m[RWS]\x1b[0m" \x1b[1mPARTED\x1b[0m" mode asynchronously added components: \n${compList}`);
+
+        resolve(componentParts);
+    });
+}   
+
+function defineAllComponents() {
+    const richWindowComponents: RWSWindowComponentRegister = (window as Window & RWSWindow).RWS.components;
+
+    Object.keys(richWindowComponents).map(key => richWindowComponents[key].component).forEach((el: IWithCompose<RWSViewComponent>) => {
+        el.define(el as any, el.definition);
+    });
+
+    for (const plugin of RWSPlugin.getAllPlugins()){
+        plugin.onComponentsDeclare();
+    }
+}
+
+function getBinds(this: RWSClientInstance){
+    return {
+        loadPartedComponents: loadPartedComponents.bind(this)        
+    };
+}
+
+export default getBinds;
+
+const ComponentHelperStatic = {
+    defineAllComponents: defineAllComponents
+}
+
+export {
+ ComponentHelperStatic,
+ RWSInfoType
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/client/config.ts:
+82
+import { IRWSConfig, IRWSUser, IStaticRWSPlugin } from "../index";
+import { RWSClientInstance } from "../client";
+
+import { RWSPlugin, DefaultRWSPluginOptionsType } from "../plugins/_plugin";
+import RWSWindow, {loadRWSRichWindow } from '../types/RWSWindow';
+import deepmerge from 'deepmerge';
+
+type RWSInfoType = { components: string[] };
+
+function getUser(this: RWSClientInstance): IRWSUser {
+
+    const localSaved = localStorage.getItem('the_rws_user');
+
+    if (localSaved) {
+        this.setUser(JSON.parse(localSaved) as IRWSUser);
+    }
+
+    return this.user;
+}
+
+function setUser(this: RWSClientInstance, user: IRWSUser): RWSClientInstance {
+    if (!user || !user?.jwt_token) {
+        console.warn('[RWS Client Warning]', 'Passed user is not valid', user);
+        return this;
+    }
+
+    this.user = user;
+
+    this.apiService.setToken(this.user.jwt_token);
+
+    localStorage.setItem('the_rws_user', JSON.stringify(this.user));
+
+    for(const plugin of RWSPlugin.getAllPlugins()){
+        plugin.onSetUser(user);
+    }
+
+    return this;
+}
+
+function pushDataToServiceWorker(this: RWSClientInstance, type: string, data: any, asset_type: string = 'data_push'): void {
+    let tries = 0;
+
+    const doIt: () => void = () => {
+        try {
+            this.swService.sendDataToServiceWorker(type, data, asset_type);
+        } catch (e) {
+            if (tries < 3) {
+                setTimeout(() => { doIt(); }, 300);
+                tries++;
+            }
+        }
+    };
+
+    doIt();
+}
+
+function pushUserToServiceWorker(this: RWSClientInstance, userData: any) {
+    this.setUser(userData);
+    this.pushDataToServiceWorker('SET_USER', userData, 'logged_user');
+}
+
+function get(this: RWSClientInstance, key: string): any | null
+{
+    if(Object.keys(this.customServices).includes(key)){
+        return this.customServices[key];
+    }
+
+    if(Object.keys(this.defaultServices).includes(key)){
+        return this.defaultServices[key];
+    }
+
+    return null;
+}
+
+type PluginConstructor<T extends DefaultRWSPluginOptionsType> = new (options: T) => RWSPlugin<T>;
+type RWSPluginEntry = IStaticRWSPlugin;
+
+function addPlugin<T  extends DefaultRWSPluginOptionsType>(this: RWSClientInstance, pluginEntry: RWSPluginEntry){
+    const rwsWindow: RWSWindow = loadRWSRichWindow();
+    const pluginClass: PluginConstructor<T> = (Array.isArray(pluginEntry) ? pluginEntry[0] : pluginEntry) as PluginConstructor<T>;
+    const pluginOptions: T = (Array.isArray(pluginEntry) ? pluginEntry[1] : { enabled: true }) as T;
+
+    if(!Object.keys(rwsWindow.RWS.plugins).includes(pluginClass.name)){       
+        const pluginInstance: RWSPlugin<T> = new pluginClass(pluginOptions);
+        this.plugins[pluginClass.name] = pluginInstance; 
+        rwsWindow.RWS.plugins[pluginClass.name] = pluginInstance;
+    }
+}
+
+async function setup(this: RWSClientInstance, config: IRWSConfig = {}): Promise<IRWSConfig> {
+    if (this.isSetup) {
+        return this.config;
+    }    
+
+    if(this.config){
+        this.config = deepmerge(this.config, config);
+    }    
+
+    this.appConfig.mergeConfig(this.config);    
+
+    if(this.config.plugins){                
+        for (const pluginEntry of this.config.plugins){
+            addPlugin.bind(this)(pluginEntry);
+        }
+    }
+
+    if(config?.user){
+        this.setUser(config.user);
+    }
+
+    if (this.appConfig.get('parted')) {
+        const componentParts = await this.loadPartedComponents();
+
+        for (const plugin of RWSPlugin.getAllPlugins()){
+            plugin.onPartedComponentsLoad(componentParts);
+        }
+    }               
+
+    this.isSetup = true;
+    return this.config;
+}
+
+async function start(this: RWSClientInstance, config: IRWSConfig = {}): Promise<RWSClientInstance> {
+    this.config = { ...this.config, ...config };
+    
+    if (!this.isSetup) {
+        this.config = await this.setup(this.config);
+    }
+
+    if (Object.keys(config).length) {
+        this.appConfig.mergeConfig(this.config);
+    }            
+
+    const setThisUser = config?.user || this.getUser();
+
+    if(setThisUser){
+        this.config.user = setThisUser;
+        this.setUser(setThisUser);
+    }
+
+    if (this.config.user && !this.config.dontPushToSW) {
+        this.pushUserToServiceWorker(this.user);
+    }
+
+    await this.initCallback();        
+
+    for (const plugin of RWSPlugin.getAllPlugins()){                
+        await plugin.onClientStart();
+    }
+
+    return this;
+}
+
+function getBinds(this: RWSClientInstance) {
+    return {
+        start: start.bind(this),
+        setup: setup.bind(this),        
+        get: get.bind(this),
+        setUser: setUser.bind(this),
+        getUser: getUser.bind(this),
+        pushDataToServiceWorker: pushDataToServiceWorker.bind(this),
+        pushUserToServiceWorker: pushUserToServiceWorker.bind(this)
+    };
+}
+
+export default getBinds;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/client/services.ts:
+84
+import { loadRWSRichWindow } from "../types/RWSWindow";
+import { RWSClientInstance } from "../client";
+type RWSInfoType = { components: string[] };
+
+async function loadServices(this: RWSClientInstance){
+    const richWindow = loadRWSRichWindow();     
+
+    for (const serviceKey of Object.keys(richWindow.RWS._registered)){
+        const currentService = this._container.get(richWindow.RWS._registered[serviceKey]);
+
+        if(currentService.isInClient() && !Object.keys(this.customServices).includes(serviceKey)){                
+            this.customServices[serviceKey] = currentService;
+        }
+
+        if(currentService.isDefault() && !Object.keys(this.defaultServices).includes(serviceKey)){            
+            this.defaultServices[serviceKey] = currentService;                
+        }        
+    }
+}
+
+
+function getBinds(this: RWSClientInstance){
+    return {
+        loadServices: loadServices.bind(this),
+    };
+}
+
+export default getBinds;
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/client.ts:
+75
+import IRWSConfig, { RWSPluginEntry } from './types/IRWSConfig';
+
+import RWSNotify from './types/RWSNotify';
+
+import ConfigService, { ConfigServiceInstance } from './services/ConfigService';
+import UtilsService, { UtilsServiceInstance } from './services/UtilsService';
+import DOMService, { DOMServiceInstance } from './services/DOMService';
+import ApiService, { ApiServiceInstance } from './services/ApiService';
+import NotifyService, { NotifyServiceInstance } from './services/NotifyService';
+
+import ServiceWorkerService, { ServiceWorkerServiceInstance } from './services/ServiceWorkerService';
+import { IBackendRoute } from './services/ApiService';
+import IRWSUser from './types/IRWSUser';
+import RWSWindow, { RWSWindowComponentRegister, loadRWSRichWindow } from './types/RWSWindow';
+
+import { DI, Container, Registration } from './components/_container';
+
+import RWSViewComponent, { IWithCompose } from './components/_component';
+import RWSContainer from './components/_container';
+import TheRWSService from './services/_service';
+
+import ComponentHelper, { ComponentHelperStatic, RWSInfoType } from './client/components';
+import ServicesHelper from './client/services';
+import ConfigHelper from './client/config';
+import { DefaultRWSPluginOptionsType, RWSPlugin } from './plugins/_plugin';
+import { IStaticRWSPlugin } from './types/IRWSPlugin'
+
+interface IHotModule extends NodeModule {
+    hot?: {
+        accept(dependencies: string[], callback?: (updatedDependencies: string[]) => void): void;
+        accept(dependency: string, callback?: () => void): void;
+        accept(errHandler?: (err: Error) => void): void;
+        dispose(callback: (data: any) => void): void;
+    }
+}
+
+type RWSEventListener = (event: CustomEvent) => void;
+
+class RWSClient {
+    protected _container: Container;
+    protected user: IRWSUser = null;
+    
+    protected config: IRWSConfig = {};
+    protected plugins: {[key: string]: RWSPlugin<DefaultRWSPluginOptionsType>} = {}
+    protected isSetup = false;
+    protected devStorage: { [key: string]: any } = {};    
+    protected customServices: { [serviceName: string]: TheRWSService} = {};
+    protected defaultServices: { [serviceName: string]: TheRWSService} = {};
+
+    private componentHelper = ComponentHelper.bind(this)();
+    private servicesHelper = ServicesHelper.bind(this)();
+    private configHelper = ConfigHelper.bind(this)();
+
+    protected initCallback: () => Promise<void> = async () => { };    
+
+    constructor(
+        @ConfigService public appConfig: ConfigServiceInstance,        
+        @DOMService public domService: DOMServiceInstance,
+        @UtilsService public utilsService: UtilsServiceInstance,
+        @ApiService public apiService: ApiServiceInstance,
+        @ServiceWorkerService public swService: ServiceWorkerServiceInstance,
+        @NotifyService public notifyService: NotifyServiceInstance
+    ) {
+        this._container = RWSContainer();
+        this.user = this.getUser();      
+        
+        this.loadServices();
+
+        this.config.plugins = [];
+        this.pushDataToServiceWorker('SET_WS_URL', { url: this.appConfig.get('wsUrl') }, 'ws_url');
+
+        if (this.user) {
+            this.pushUserToServiceWorker({ ...this.user, instructor: false });
+        }        
+    }
+
+    addPlugin<T extends DefaultRWSPluginOptionsType>(pluginEntry: IStaticRWSPlugin<T>)
+    {        
+        this.config.plugins.push(pluginEntry);
+    }
+
+    async setup(config: IRWSConfig = {}): Promise<IRWSConfig> {
+        return this.configHelper.setup(config);
+    }
+
+    async start(config: IRWSConfig = {}): Promise<RWSClient> {
+        return this.configHelper.start(config);
+    }
+
+    private loadServices(){
+        return this.servicesHelper.loadServices();
+    }
+
+    get(key: string): any | null
+    {
+        return this.configHelper.get(key);
+    }    
+
+    setNotifier(notifier: RWSNotify): RWSClient {
+        this.notifyService.setNotifier(notifier);
+
+        return this;
+    }
+
+    setDefaultLayout(DefaultLayout: any): RWSClient {
+        this.config.defaultLayout = DefaultLayout;
+
+        return this;
+    }
+
+    setBackendRoutes(routes: IBackendRoute[]): RWSClient {
+        this.config.backendRoutes = routes;
+        this.appConfig.set('backendRoutes', routes);
+        return this;
+    }
+
+    async onInit(callback: () => Promise<void>): Promise<RWSClient> {
+        this.initCallback = callback;
+
+        for (const plugin of RWSPlugin.getAllPlugins()){
+            plugin.onComponentsDeclare();
+        }
+
+        return this;
+    }
+
+    pushDataToServiceWorker(type: string, data: any, asset_type: string = 'data_push'): void {
+        this.configHelper.pushDataToServiceWorker(type, data, asset_type);
+
+    }
+
+    pushUserToServiceWorker(userData: any) {
+        this.configHelper.pushUserToServiceWorker(userData);
+    }
+
+    getUser(): IRWSUser {
+        return this.configHelper.getUser();
+    }
+
+    setUser(user: IRWSUser): RWSClient {
+        return this.configHelper.setUser(user);
+    }
+
+    getConfig(): ConfigServiceInstance {
+        return this.appConfig;
+    }
+
+    on<T>(eventName: string, listener: RWSEventListener): void {
+        document.addEventListener(eventName, (event: Event) => {
+            listener(event as CustomEvent<T>);
+        });
+    }
+
+    setDevStorage(key: string, stuff: any): RWSClient {
+        this.devStorage[key] = stuff;
+        return this;
+    }
+
+    getDevStorage(key: string): any {
+        return this.devStorage[key];
+    }
+
+    registerToDI(): void {
+
+    }
+
+    async loadPartedComponents(): Promise<RWSInfoType> {
+        return this.componentHelper.loadPartedComponents();
+    }   
+    
+    async onDOMLoad(): Promise<void> {
+        return this.domService.onDOMLoad()
+    }
+
+    assignClientToBrowser(): void {
+        this.getBrowserObject().RWS.client = this;
+    }
+
+    enableRouting(): void {
+        this.appConfig.mergeConfig({ routing_enabled: true });
+    }
+
+    disableRouting(): void {
+        this.appConfig.mergeConfig({ routing_enabled: false });
+    }
+
+    private getBrowserObject(): RWSWindow {
+        loadRWSRichWindow();
+        return window;
+    }
+
+    static getDI(): typeof DI {
+        return DI;
+    }
+
+    static defineAllComponents() {
+        ComponentHelperStatic.defineAllComponents();
+    }
+
+    
+    defineComponents(){
+        ComponentHelperStatic.defineAllComponents();
+    }
+
+    
+    logout(){
+        this.user = null;
+        localStorage.removeItem('the_rws_user');
+    }
+}
+
+export default DI.createInterface<RWSClient>(x => x.singleton(RWSClient));
+export { IHotModule, RWSClient as RWSClientInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/_default_observable_accessor.ts:
+115
+import { Accessor, Observable } from "@microsoft/fast-element";
+import { ExtendedObservableAccessor } from "./_extended_accessor";
+
+export class DefaultObservableAccessor extends ExtendedObservableAccessor {
+
+    constructor(public name: string, protected customGet: (source: any, field: string) => any = null, protected customSet: (source: any, field: string, newVal: any) => boolean | void = null, protected watcher: any = void 0, suffix: string = 'Changed') {
+        super(name, customGet, customSet, watcher, suffix);
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/_extended_accessor.ts:
+105
+import { Observable, Accessor } from "@microsoft/fast-element";
+
+export abstract class ExtendedObservableAccessor implements Accessor {
+    protected field: string;
+    protected callback: string;  
+
+    constructor(public name: string, protected customGet: (source: any, field: string) => any = null, protected customSet: (source: any, field: string, newVal: any) => boolean | void = null, protected watcher: any = void 0, suffix: string = 'Changed') {
+        this.field = `_${name}`;
+        this.callback = `${name}${suffix}`;
+    }
+
+    getValue(source: any): any {
+        Observable.track(source, this.name);
+
+        return this.customGet ? this.customGet(source, this.field) : source[this.field];
+    }
+
+    setValue(source: any, newValue: any): void {
+        if(this.customSet){
+            if(this.customSet(source, this.field, newValue) === false){
+                return;
+            };            
+        }
+        
+        const field = this.field;
+        const oldValue = source[field];
+
+        if (oldValue !== newValue) {
+            source[field] = newValue;
+
+            const callback = source[this.callback];
+
+            if (typeof callback === 'function') {
+                callback.call(source, oldValue, newValue);
+            }
+
+            Observable.getNotifier(source).notify(this.name);
+        }
+    }
+    
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/_external_handler.ts:
+104
+import { Observable } from "@microsoft/fast-element";
+
+export function handleExternalChange(_target: any, $prop: string)
+{       
+    if(!!_target['externalChanged']){
+        _target['externalChanged'].call(_target, $prop, null, _target[$prop]);
+    } 
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/_external_observable_accessor.ts:
+116
+import { Accessor, Observable } from "@microsoft/fast-element";
+import { ExtendedObservableAccessor } from "./_extended_accessor";
+
+export class ExternalObservableAccessor extends ExtendedObservableAccessor {
+
+    constructor(public name: string, protected customGet: (source: any, field: string) => any = null, protected customSet: (source: any, field: string, newVal: any) => boolean | void = null, protected watcher: any = void 0) {
+        super(name, customGet, customSet, watcher, '');        
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/angular-attr.ts:
+99
+import { 
+    DecoratorAttributeConfiguration, 
+    AttributeConfiguration,
+    Observable,     
+} from "@microsoft/fast-element";
+import { handleExternalChange } from "./_external_handler";
+import RWSViewComponent, { IWithCompose } from "../_component";
+import { externalAttr } from "./external-attr";
+
+export function ngAttr(
+    config?: DecoratorAttributeConfiguration
+): (target: {}, property: string) => void;
+
+/**
+ * Decorator:  Specifies an HTML attribute.
+ * @param target - The class to define the attribute on.
+ * @param prop - The property name to be associated with the attribute.
+ * @public
+ */
+export function ngAttr(target: {}, prop: string): void;
+export function ngAttr(
+    configOrTarget?: DecoratorAttributeConfiguration | {},
+    prop?: string
+): void | ((target: {}, property: string) => void) {
+    return externalAttr(configOrTarget, prop, {
+        converter: (val: any) => {
+            if(val && val.indexOf('{{') > -1){
+                return undefined;
+            }                               
+    
+            return val;
+        }    
+    })
+}
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/external-attr.ts:
+100
+import { 
+    DecoratorAttributeConfiguration, 
+    AttributeConfiguration,
+    Observable,     
+} from "@microsoft/fast-element";
+import { handleExternalChange } from "./_external_handler";
+import RWSViewComponent, { IWithCompose } from "../_component";
+
+type ExAttrOpts = { converter?: (val: any) => string }
+const _default_opts = {
+    converter: (val: any) => {
+        return val;
+    }    
+}
+
+export function externalAttr(
+    config?: DecoratorAttributeConfiguration, 
+): (target: {}, property: string) => void;
+
+export function externalAttr(target: {}, property: string, opts?: ExAttrOpts): void;
+export function externalAttr(
+    configOrTarget?: DecoratorAttributeConfiguration | {},
+    property?: string,
+    opts: ExAttrOpts = _default_opts
+): void | ((target: {}, property: string) => void) {
+    let config: AttributeConfiguration;
+
+    function decorator($target: {}, $prop: string): void {
+        if (arguments.length > 1) {
+            // Non invocation:
+            // - @attr
+            // Invocation with or w/o opts:
+            // - @attr()
+            // - @attr({...opts})
+            config.property = $prop;
+        }
+
+        config.mode = 'fromView';        
+        config.converter = { fromView: opts.converter, toView: null };
+
+        const attrs = AttributeConfiguration.locate($target.constructor);        
+        RWSViewComponent.setExternalAttr(($target.constructor as IWithCompose<any>).name, $prop);        
+        
+        attrs.push(config);       
+    }
+
+    if (arguments.length > 1) {
+        // Non invocation:
+        // - @attr
+        config = {} as any;
+        decorator(configOrTarget!, property!);
+        return;
+    }
+
+    // Invocation with or w/o opts:
+    // - @attr()
+    // - @attr({...opts})
+    config = configOrTarget === void 0 ? ({} as any) : configOrTarget;
+    return decorator;
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/external-observable.ts:
+106
+import { Observable, Accessor, observable as parentObservable} from '@microsoft/fast-element';
+
+import RWSViewComponent from '../_component';
+import { DefaultObservableAccessor } from './_default_observable_accessor';
+import { ExternalObservableAccessor } from './_external_observable_accessor';
+
+
+type ExternalObservableOptions = {} | unknown;
+
+function isString(test: unknown){
+    return typeof test === 'string';
+}
+
+function externalObservable(targetComponent: RWSViewComponent | unknown, nameOrAccessor: string | Accessor, opts: ExternalObservableOptions = null): void | any 
+{        
+
+    const target = targetComponent as any;
+    const propName = typeof nameOrAccessor === 'string' ? nameOrAccessor : nameOrAccessor.name;
+
+
+    if (isString(nameOrAccessor)) {
+        nameOrAccessor = new DefaultObservableAccessor(propName);
+    }    
+
+    const defaultAccessor: Accessor = nameOrAccessor as Accessor;
+    const extendedAccessor = new ExternalObservableAccessor(propName);
+
+    const accessors: Accessor[] = [
+        defaultAccessor,
+        extendedAccessor
+    ];
+
+    for (const accessor of accessors){
+        Observable.getAccessors(target).push(accessor);
+
+        Reflect.defineProperty(target, accessor.name, {
+            enumerable: true,
+            get(this: any) {
+                return accessor.getValue(this);
+            },
+            set(this: any, newValue: any) {         
+                const oldVal = accessor.getValue(this);       
+                accessor.setValue(this, newValue);
+                if(!!this['externalChanged']){
+                    this['externalChanged'].call(accessor.name, oldVal, newValue);
+                }
+            },
+        });
+    }   
+}
+  
+
+export { externalObservable };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_attrs/sanitize-html.ts:
+100
+import { Observable } from '@microsoft/fast-element';
+import RWSViewComponent from '../_component';
+import DOMService from '../../services/DOMService';
+import RWSContainer from '../_container';
+import { IOptions } from 'sanitize-html';
+
+import * as he from 'he';
+
+type SanitizeOptions = IOptions & { fullEncode?: boolean };
+
+const heOpt: he.EncodeOptions = {
+    useNamedReferences: false, 
+    encodeEverything: true,
+};
+
+function enc(html: string): string
+{
+    return he.encode(html, heOpt);
+}
+
+
+const transformAnyTag = (tagName: string, attribs: { [key: string]: string }) => {
+    // Example: Wrap the original tag with `span` and indicate the original tag name in a data attribute
+    return {
+        tagName: 'span', // Change this to any tag you want to transform to
+        attribs: {
+            ...attribs,
+            'data-original-tag': tagName
+        }
+    };
+};
+
+function sanitizedAttr(configOrTarget?: SanitizeOptions | RWSViewComponent, prop?: string): void | any 
+{    
+    if (arguments.length > 1) {
+        // Decorator used directly without factory invocation
+        // Apply the decorator immediately without returning anything
+        applyDecorator(configOrTarget as RWSViewComponent, prop!);
+    } else {
+        // Decorator factory invocation
+        const config = configOrTarget as SanitizeOptions;
+        // Return a function that applies the decorator, conforming to TypeScript's expectations for decorator factories
+        return (target: RWSViewComponent, property: string) => applyDecorator(target, property, config);
+    }
+}
+
+function applyDecorator(target: RWSViewComponent, prop: string, config: SanitizeOptions = null): void 
+{    
+    if(config.fullEncode){
+        const encAllOpts = {transformTags: { '*' : transformAnyTag }, textFilter: function(text: string, tagName?: string) { return tagName ? `${enc('<')}${tagName}${enc('>')}${text}${enc('</')}${tagName}${enc('>')}` : text; }};
+        config = {...config, ...encAllOpts};
+        delete config.fullEncode;
+    }
+
+    modifyPropertyDescriptor(target, prop, config as IOptions);
+}
+
+function modifyPropertyDescriptor(target: any, propertyKey: string, config: IOptions = null): void {
+    const privatePropName = `_${String(propertyKey)}`;
+    Object.defineProperty(target, privatePropName, {
+        writable: true,
+        value: target[propertyKey],
+    });
+
+    Object.defineProperty(target, propertyKey, {
+        get() {
+            return this[privatePropName];                             
+        },
+        set(value: any) {                
+            if (typeof value === 'string') {                                    
+                this[privatePropName] = RWSContainer().get(DOMService).sanitizeHTML(value, null, config);                
+            } else {
+                this[privatePropName] = null;
+            }
+            Observable.notify(this, propertyKey);
+        },
+    });
+}
+  
+
+export { sanitizedAttr };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_component.ts:
+90
+import { ViewTemplate, ElementStyles, observable, html, Constructable, PartialFASTElementDefinition, attr, Observable } from '@microsoft/fast-element';
+import { FoundationElement, FoundationElementDefinition, FoundationElementRegistry, OverrideFoundationElementDefinition } from '../../foundation/rws-foundation';
+import ConfigService, { ConfigServiceInstance } from '../services/ConfigService';
+import UtilsService, { UtilsServiceInstance } from '../services/UtilsService';
+import DOMService, { DOMServiceInstance, DOMOutputType } from '../services/DOMService';
+import ApiService, { ApiServiceInstance } from '../services/ApiService';
+import NotifyService, { NotifyServiceInstance } from '../services/NotifyService';
+import { IRWSViewComponent, IAssetShowOptions } from '../types/IRWSViewComponent';
+import { applyConstructor, RWSInject } from './_decorator';
+import TheRWSService from '../services/_service';
+import { handleExternalChange } from './_attrs/_external_handler';
+import { IFastDefinition, isDefined, defineComponent, getDefinition } from './_definitions';
+import { on, $emitDown, observe, sendEventToOutside } from './_event_handling';
+
+type ComposeMethodType<
+    T extends FoundationElementDefinition, 
+    K extends Constructable<RWSViewComponent>
+> = (this: K, elementDefinition: T) => (overrideDefinition?: OverrideFoundationElementDefinition<T>) => FoundationElementRegistry<FoundationElementDefinition, T>;
+
+export interface IWithCompose<T extends RWSViewComponent> {
+    [key: string]: any
+    new (...args: any[]): T;
+    definition?: IFastDefinition
+    defineComponent: <T extends RWSViewComponent>(this: IWithCompose<T>) => void
+    isDefined<T extends RWSViewComponent>(this: IWithCompose<T>): boolean
+    compose: ComposeMethodType<FoundationElementDefinition, Constructable<T>>;
+    define<TType extends (...params: any[]) => any>(type: TType, nameOrDef?: string | PartialFASTElementDefinition | undefined): TType;
+    _verbose: boolean;
+    _toInject: {[key: string]: TheRWSService};
+    _depKeys: {[key: string]: string[]};
+    _externalAttrs: { [key:string]: string[] };
+    setExternalAttr: (componentName: string, key: string) => void
+    sendEventToOutside: <T>(eventName: string, data: T) => void
+    _EVENTS: {
+        component_define: string,
+        component_parted_load: string,
+    }
+}
+
+abstract class RWSViewComponent extends FoundationElement implements IRWSViewComponent {
+    __isLoading: boolean = true;
+    __exAttrLoaded: string[] = [];
+    private static instances: RWSViewComponent[] = [];
+    static fileList: string[] = [];
+
+    @attr routeParams: Record<string, string> = {};
+
+    static autoLoadFastElement = true;
+    static _defined: { [key: string]: boolean } = {};
+    static _toInject: {[key: string]: TheRWSService} = {};
+    static _depKeys: {[key: string]: string[]} = {_all: []};
+    static _externalAttrs: { [key: string]: string[] } = {};
+    static _verbose: boolean = false;
+
+    static _EVENTS = {
+        component_define: 'rws:lifecycle:defineComponent',
+        component_parted_load: 'rws:lifecycle:loadPartedComponents',
+    }
+
+    @RWSInject(ConfigService, true) protected config: ConfigServiceInstance;    
+    @RWSInject(DOMService, true) protected domService: DOMServiceInstance;
+    @RWSInject(UtilsService, true) protected utilsService: UtilsServiceInstance;
+    @RWSInject(ApiService, true) protected apiService: ApiServiceInstance;    
+    @RWSInject(NotifyService, true) protected notifyService: NotifyServiceInstance;
+
+    @observable trashIterator: number = 0;
+    @observable fileAssets: {
+        [key: string]: ViewTemplate
+    } = {};    
+
+    constructor() {
+        super();       
+        applyConstructor(this);               
+    }
+
+    connectedCallback() {        
+        super.connectedCallback();        
+        applyConstructor(this);    
+
+        if (!(this.constructor as IWithCompose<this>).definition && (this.constructor as IWithCompose<this>).autoLoadFastElement) {
+            throw new Error('RWS component is not named. Add `static definition = {name, template};`');
+        }
+
+        this.applyFileList();
+
+        RWSViewComponent.instances.push(this);
+    }    
+
+    passRouteParams(routeParams: Record<string, string> = null) {
+        if (routeParams) {
+            this.routeParams = routeParams;
+        }
+    }
+
+    showAsset(assetName: string, options: IAssetShowOptions = {}): ViewTemplate<any, any> {
+
+        if (!this.fileAssets[assetName]) {
+            return html`<span></span>`;
+            throw new Error(`File asset "${assetName}" not declared in component "${(this.constructor as IWithCompose<this>).definition.name}"`);
+        }
+
+        return this.fileAssets[assetName];
+    }
+
+    on<T>(type: string, listener: (event: CustomEvent<T>) => any) {
+        return on.bind(this)(type, listener);
+    }
+
+    $emitDown<T>(eventName: string, payload: T) {
+        return $emitDown.bind(this)(eventName, payload);
+    }
+
+    observe(callback: (component: RWSViewComponent, node: Node, observer: MutationObserver) => Promise<void>, condition: (component: RWSViewComponent, node: Node) => boolean = null, observeRemoved: boolean = false)
+    {
+        return observe.bind(this)(callback, condition, observeRemoved);
+    }
+
+    parse$<T extends Element>(input: NodeListOf<T>, directReturn: boolean = false): DOMOutputType<T> {
+        return this.domService.parse$<T>(input, directReturn);
+    }
+
+    $<T extends Element>(selectors: string, directReturn: boolean = false): DOMOutputType<T> {
+        return this.domService.$<T>(this.getShadowRoot(), selectors, directReturn);
+    }
+
+    async loadingString<T, C>(item: T, addContent: (cnt: C | { output: string }, paste?: boolean, error?: boolean) => void, shouldStop: (stopItem: T, addContent: (cnt: C | { output: string }, paste?: boolean, error?: boolean) => void) => Promise<boolean>) {
+        let dots = 1;
+        const maxDots = 3; // Maximum number of dots
+        const interval = setInterval(async () => {
+            const dotsString = '. '.repeat(dots);
+
+            const doesItStop = await shouldStop(item, addContent);
+
+            if (doesItStop) {
+                addContent({ output: '' }, true);
+                clearInterval(interval);
+            } else {
+                addContent({ output: `${dotsString}` }, true);
+
+                dots = (dots % (maxDots)) + 1;
+            }
+        }, 500);
+    }
+
+    async onDOMLoad(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            if (this.getShadowRoot() !== null && this.getShadowRoot() !== undefined) {
+                resolve();
+            } else {
+                // If shadowRoot is not yet available, use MutationObserver to wait for it
+                const observer = new MutationObserver(() => {
+                    if (this.getShadowRoot() !== null && this.getShadowRoot() !== undefined) {
+                        observer.disconnect();
+                        resolve();
+                    }
+                });
+                observer.observe(this, { childList: true, subtree: true });
+            }
+        });
+    }
+
+
+    protected getShadowRoot(): ShadowRoot {
+        const shRoot: ShadowRoot | null = this.shadowRoot;
+
+        if (!shRoot) {
+            throw new Error(`Component ${(this.constructor as IWithCompose<this>).definition.name} lacks shadow root. If you wish to have component without shadow root extend your class with FASTElement`);
+        }
+
+        return shRoot;
+    }
+
+    forceReload() {
+        this.trashIterator += 1;
+    }
+
+    hotReplacedCallback() {
+        this.forceReload();
+    }
+
+    sendEventToOutside<T>(eventName: string, data: T) {
+        sendEventToOutside(eventName, data);
+    }
+
+    static sendEventToOutside<T>(eventName: string, data: T) {
+        sendEventToOutside(eventName, data);
+    }
+
+    private applyFileList(): void
+    {
+        try {
+            (this.constructor as IWithCompose<this>).fileList.forEach((file: string) => {
+                if (this.fileAssets[file]) {
+                    return;
+                }
+                this.apiService.pureGet(this.config.get('pubUrlFilePrefix') + file).then((response: string) => {
+                    this.fileAssets = { ...this.fileAssets, [file]: html`${response}` };
+                });
+            });
+
+        } catch (e: Error | any) {
+            console.error('Error loading file content:', e.message);
+            console.error(e.stack);
+        }
+    }   
+
+    static setExternalAttr(componentName: string, key: string)
+    {
+        if(!Object.keys(RWSViewComponent._externalAttrs).includes(componentName)){
+            RWSViewComponent._externalAttrs[componentName] = [];
+        }
+
+        RWSViewComponent._externalAttrs[componentName].push(key);
+    }
+
+    static hotReplacedCallback() {
+        this.getInstances().forEach(instance => instance.forceReload());
+    }
+
+    static isDefined<T extends RWSViewComponent>(this: IWithCompose<T>): boolean 
+    {
+        return isDefined<T>(this);
+    }
+
+    static defineComponent<T extends RWSViewComponent>(this: IWithCompose<T>): void
+    {
+        return defineComponent<T>(this);
+    }
+
+    static getDefinition(tagName: string, htmlTemplate: ViewTemplate, styles: ElementStyles = null) 
+    {
+        return getDefinition(tagName, htmlTemplate, styles);
+    }
+
+    private static getInstances(): RWSViewComponent[] {
+        return RWSViewComponent.instances;
+    }
+}
+
+export default RWSViewComponent;
+
+export type {
+    IAssetShowOptions, IRWSViewComponent
+} from '../types/IRWSViewComponent';
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_container.ts:
+90
+import { DI, Container } from '../../foundation/rws-foundation';
+import {loadRWSRichWindow} from '../types/RWSWindow';
+
+export default () => {
+    const richWindow = loadRWSRichWindow();            
+
+    if(richWindow.RWS.container){        
+        return richWindow.RWS.container;
+    }
+    
+    richWindow.RWS.container = DI.getOrCreateDOMContainer(richWindow.RWS.container_node);    
+
+    return richWindow.RWS.container;
+};
+
+export { DI, Container }
+
+export type {
+    Key, Registration, InterfaceSymbol
+} from '../../foundation/rws-foundation';
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_decorator.ts:
+90
+import RWSContainer from './_container';
+import TheRWSService from '../services/_service';
+import ConfigService from '../services/ConfigService';
+import { loadRWSRichWindow } from '../types/RWSWindow';
+import RWSViewComponent, { IWithCompose } from './_component';
+import { InterfaceSymbol } from './_container';
+import { RWSInject } from './_decorators/RWSInject';
+import { ElementStyles, Observable, ViewTemplate } from '@microsoft/fast-element'; 
+import { handleExternalChange } from './_attrs/_external_handler';
+
+interface RWSDecoratorOptions {
+    template?: string,
+    styles?: string,
+    fastElementOptions?: any,
+    ignorePackaging?: boolean,
+    debugPackaging?: boolean
+    oreoMode?: boolean
+}
+
+//const _PARAMTYPES_METADATA_KEY = 'design:paramtypes';
+type HtmlBinderType = (context: RWSViewComponent) => ViewTemplate;
+
+function RWSView<Component extends RWSViewComponent>(name: string, data?: RWSDecoratorOptions | null, override?: { styles?: ElementStyles, template?: ViewTemplate, options?: any }): (type: any, args?: any) => void {
+    return (theComponent: IWithCompose<Component>, args?: any) => {
+        theComponent.definition = { name, template: null }
+
+        if(override){
+            if(override.styles){
+                theComponent.definition.styles = override.styles;
+            }
+
+            if(override.template){
+                theComponent.definition.template =  override.template;
+            }
+
+            
+            if(override.options){
+                (theComponent.definition as any).options = override.options;
+            }
+        }        
+    };
+}
+
+
+function RWSIgnore(params: { mergeToApp?: boolean } | null = null): () => void {
+    return () => { };
+}
+
+function getParentConstructor(instance: any): any {
+    const proto = Object.getPrototypeOf(instance.constructor.prototype);
+    if (proto && proto.constructor) {
+        return proto.constructor;
+    }
+
+    return null;
+}
+
+
+const applyConstructor = (component: RWSViewComponent, x: boolean = false): void => {
+    const mainConstructor: any = component.constructor;
+    const parent = getParentConstructor(component);
+    
+
+    if (parent.name !== 'RWSViewComponent' ) {
+        return;
+    }    
+    
+
+    const existingInjectedDependencies = (mainConstructor as IWithCompose<RWSViewComponent>)._toInject;
+
+    const regServices = loadRWSRichWindow().RWS._registered;
+    
+
+    const depsToInject: string[] = (mainConstructor as IWithCompose<RWSViewComponent>)._depKeys[mainConstructor.name] || [];
+    const depsInInjector: string[] = Object.keys(existingInjectedDependencies);
+
+    const toInject: string[] = [...depsToInject]
+
+    type KeyType = {[key: string]: TheRWSService | string };
+
+    const _target = (component as any);
+    
+    function inject(services: KeyType){
+        for (const prop in services) {
+            const service = (typeof services[prop] === 'string' ? existingInjectedDependencies[prop] : services[prop]) as TheRWSService;      
+            _target[prop] = service;            
+        }
+    }
+
+    inject(toInject.reduce((acc: KeyType, cur) => {
+        acc[cur] = cur;
+        return acc;
+      }, {}));
+
+    const defaultDeps: [string, TheRWSService][] = Object.keys(existingInjectedDependencies)
+        .filter((depKey: string) => existingInjectedDependencies[depKey].isDefault()).map((depKey => [depKey, existingInjectedDependencies[depKey]]));
+
+    inject(defaultDeps.reduce((acc: KeyType, cur: [string, TheRWSService]) => {
+        acc[cur[0]] = cur[1];
+        return acc;
+      }, {}));    
+
+    inject({
+        config: RWSContainer().get(ConfigService)
+    })    
+
+    if(Object.keys(RWSViewComponent._externalAttrs).includes((_target.constructor as IWithCompose<any>).name)){
+        for(const exAttrKey in RWSViewComponent._externalAttrs[(_target.constructor as IWithCompose<any>).name]){  
+            const exAttr = RWSViewComponent._externalAttrs[(_target.constructor as IWithCompose<any>).name][exAttrKey];          
+            const notifier = Observable.getNotifier(_target);
+            notifier.subscribe({
+                handleChange(source, key) {                    
+                    if (key === exAttr && !_target.__exAttrLoaded.includes(exAttr)) {                        
+                        handleExternalChange(source, key);
+                        _target.__exAttrLoaded.push(key);
+                    }
+                }
+            }, exAttr);
+        }    
+    }
+};
+
+export { RWSView, RWSDecoratorOptions, RWSIgnore, RWSInject, applyConstructor };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_decorators/RWSFillBuild.ts:
+104
+import IRWSConfig from '../../types/IRWSConfig.js';
+
+function extractEnvVar(envVar: string){
+    const extractedVars = JSON.parse(JSON.stringify(envVar));                                  
+
+    const {   
+        backendUrl,
+        wsUrl,
+        partedDirUrlPrefix,
+        partedPrefix,
+        pubUrlFilePrefix,
+        transports,    
+        parted        
+    } = extractedVars;
+
+    const extractedFrontendVars = {
+        backendUrl,
+        wsUrl,
+        partedDirUrlPrefix,
+        partedPrefix,
+        pubUrlFilePrefix,
+        transports,    
+        parted
+    };
+
+    return {
+        extractedVars,
+        extractedFrontendVars
+    };
+}
+
+function RWSFillBuild(config: Partial<IRWSConfig> = {}) {
+    return function <T extends { new(...args: any[]): {} }>(constructor: T) {
+        return class extends constructor {
+            _DEFAULTS: IRWSConfig;
+            _BUILD_OVERRIDE: IRWSConfig;
+            constructor(...args: any[]) {
+                super(...args);
+
+                const extractedFrontendDefaults = extractEnvVar(process.env._RWS_DEFAULTS).extractedFrontendVars;
+
+                this._DEFAULTS = {
+                    ...config,
+                    ...extractedFrontendDefaults
+                } as IRWSConfig;        
+                
+                const extractedFrontendBuildVars = extractEnvVar(process.env._RWS_BUILD_OVERRIDE).extractedFrontendVars;
+
+                this._BUILD_OVERRIDE = extractedFrontendBuildVars as IRWSConfig;
+            }
+        };
+    };
+}
+
+export { RWSFillBuild };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_decorators/RWSInject.ts:
+101
+import { Key } from '../_container';
+import RWSViewComponent, { IWithCompose } from '../_component';
+import { loadDep, getFunctionParamNames } from './_di';
+import TheRWSService from '../../services/_service';
+import { handleExternalChange } from '../_attrs/_external_handler';
+
+
+type InjectDecoratorReturnType = (target: any, key?: string | number | undefined, parameterIndex?: number) => void;
+type TargetType = any;
+
+function addToComponentInjection(targetComponentName: string, constructor: any, depKey: string, dependencyClass: Key, isDefaultService: boolean = false){
+
+    if(isDefaultService){
+        targetComponentName = '_all';
+    }
+
+    if(!Object.keys(constructor._depKeys).includes(targetComponentName)){
+        constructor._depKeys = { [targetComponentName]: [] };
+    }
+
+    if(!constructor._depKeys[targetComponentName].includes(depKey)){
+        constructor._depKeys[targetComponentName].push(depKey);
+    }
+
+    if(!Object.keys(constructor._toInject).includes(depKey)){           
+        const loadedDependency = loadDep<TheRWSService>(dependencyClass);
+        constructor._toInject[depKey] = loadedDependency;
+    }    
+}
+
+function RWSInject<T extends RWSViewComponent>(dependencyClass: Key, defaultService: boolean = false): InjectDecoratorReturnType {
+    return (target: IWithCompose<T>, key?: keyof IWithCompose<T>, parameterIndex?: number) => {   
+        if(key){
+            const targetConstructor = typeof target === 'function' ? target : (target as any).constructor;              
+            addToComponentInjection(targetConstructor.name, targetConstructor, key as string, dependencyClass, defaultService);
+        } else{
+
+            const targetConstructor = (target as any).prototype.constructor;    
+          
+            const paramNames = getFunctionParamNames(targetConstructor);               
+            const depKey = paramNames[parameterIndex];       
+            
+            addToComponentInjection(targetConstructor.name, targetConstructor, depKey, dependencyClass, defaultService);
+        }                        
+    };
+}
+
+export {
+    RWSInject    
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_decorators/RWSService.ts:
+102
+import RWSViewComponent from '../_component';
+
+interface RWSServiceDecoratorOptions {
+    _vars?: any
+}
+
+function RWSService<T extends RWSViewComponent>(options?: RWSServiceDecoratorOptions): (type: any) => void {
+    return (constructor: T) => {
+    };
+}
+
+export { RWSService };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_decorators/_di.ts:
+95
+
+import RWSContainer, { Key } from '../_container';
+
+function getFunctionParamNames(func: () => any): string[] {
+    const constructorMatch = func.toString().match(/constructor\s*\(([^)]*)\)/);
+    if (!constructorMatch) return null;
+    return constructorMatch[1].split(',').map(param => param.trim());
+}
+
+function loadDep<T>(dependencyKeyClass: Key): T
+{    
+    return RWSContainer().get(dependencyKeyClass) as T;
+}
+
+export { loadDep, getFunctionParamNames };
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_definitions.ts:
+92
+import RWSViewComponent, { IWithCompose } from './_component';
+import RWSWindow, { RWSWindowComponentInterface, loadRWSRichWindow } from '../types/RWSWindow';
+import { ElementStyles, ViewTemplate } from '@microsoft/fast-element';
+
+export interface IFastDefinition {
+    name: string;
+    template: ViewTemplate;
+    styles?: ElementStyles;
+}
+
+export function isDefined<T extends RWSViewComponent>(element: IWithCompose<T>): boolean {
+    const richWindow: RWSWindow = loadRWSRichWindow();
+
+    if (!element.definition) {
+        return false;
+    }
+
+    return Object.keys(richWindow.RWS.components).includes(element.definition.name);
+}
+
+export function defineComponent<T extends RWSViewComponent>(element: IWithCompose<T>): void {
+    if (element.isDefined()) {
+        if (element._verbose) {
+            console.warn(`Component ${element.name} is already declared`);
+        }
+
+        return;
+    }
+
+    const richWindow = loadRWSRichWindow();
+
+    if (!element.definition) {
+        throw new Error('RWS component is not named. Add `static definition = {name, template};`');
+    }
+
+    const composedComp = element.compose({
+        baseName: element.definition.name,
+        template: element.definition.template,
+        styles: element.definition.styles
+    }) as RWSWindowComponentInterface;
+
+
+    if (!richWindow.RWS) {
+        throw new Error('RWS client not initialized');
+    }
+
+    element.sendEventToOutside<string>(element._EVENTS.component_define, element.definition.name);
+
+    richWindow.RWS.components[element.definition.name] = {
+        interface: composedComp,
+        component: element
+    };
+}
+
+export function getDefinition(tagName: string, htmlTemplate: ViewTemplate, styles: ElementStyles = null) {
+    const def: IFastDefinition = {
+        name: tagName,
+        template: htmlTemplate
+    };
+
+    if (styles) {
+        def.styles = styles;
+    }
+
+    return def;
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/_event_handling.ts:
+95
+import RWSViewComponent from "@rws-framework/client/src/components/_component";
+
+export function on<T>(this: RWSViewComponent, type: string, listener: (event: CustomEvent<any>) => any) {
+    this.addEventListener(type, (baseEvent: Event) => {
+        listener(baseEvent as CustomEvent<T>);
+    });
+}
+
+export function $emitDown<T>(this: RWSViewComponent, eventName: string, payload: T) {
+    this.$emit(eventName, payload, {
+        bubbles: true,
+        composed: true
+    });
+}
+
+export function observe(this: RWSViewComponent, callback: (component: RWSViewComponent, node: Node, observer: MutationObserver) => Promise<void>, condition: (component: RWSViewComponent, node: Node) => boolean = null, observeRemoved: boolean = false)
+{
+    const observer = new MutationObserver((mutationsList, observer) => {
+        for(const mutation of mutationsList) {
+            if (mutation.type === 'childList') {
+                const mutationObserveType: NodeList = observeRemoved ? mutation.removedNodes : mutation.addedNodes;
+                mutationObserveType.forEach(node => {                    
+                    if ((condition !== null && condition(this, node))) {
+                        callback(this, node, observer);
+                    }else if(condition === null){
+                        callback(this, node, observer);
+                    }                    
+                });
+            }
+        }
+    });
+    
+    observer.observe(this.getShadowRoot(), { childList: true, subtree: true });
+}
+
+export function sendEventToOutside<T>(eventName: string, data: T): void
+{
+    document.dispatchEvent(new CustomEvent<T>(eventName, {
+        detail: data,
+    }));
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/index.ts:
+85
+import { RWSUploader } from './uploader/component';
+import { RWSProgress } from './progress/component';
+import { RWSLoader } from './loader/component';
+
+
+function declareRWSComponents(parted: boolean = false): void
+{
+    if(!parted){
+        RWSUploader;        
+        RWSProgress;
+        RWSLoader;
+    }
+}
+
+export { declareRWSComponents };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/loader/component.ts:
+96
+import { RWSView, RWSViewComponent } from '../../index';
+
+@RWSView('the-loader')
+class RWSLoader extends RWSViewComponent {
+  
+    connectedCallback(): void {
+        super.connectedCallback();
+    }
+}
+
+RWSLoader.defineComponent();
+
+export { RWSLoader };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/progress/component.ts:
+98
+import { RWSView, RWSViewComponent, observable, attr } from '../../index';
+import {
+    nullableNumberConverter,
+} from '@microsoft/fast-element';
+
+@RWSView('rws-progress', { debugPackaging: false })
+class RWSProgress extends RWSViewComponent {
+
+    @attr({ converter: nullableNumberConverter })
+    public value: number | null;
+    protected valueChanged(): void {
+        this.updatePercentComplete();
+    }
+
+
+    @attr({ converter: nullableNumberConverter })
+    public min: number;
+    protected minChanged(): void {
+        if (this.$fastController.isConnected) {
+            this.updatePercentComplete();
+        }
+    }
+
+    
+    @attr({ converter: nullableNumberConverter })
+    public max: number;
+    protected maxChanged(): void {
+        if (this.$fastController.isConnected) {
+            this.updatePercentComplete();
+        }
+    }
+
+    
+    @observable
+    public percentComplete: number = 0;
+
+    public connectedCallback(): void {
+        super.connectedCallback();
+        this.updatePercentComplete();        
+    }
+
+    private updatePercentComplete(): void {
+        const min: number = typeof this.min === 'number' ? this.min : 0;
+        const max: number = typeof this.max === 'number' ? this.max : 100;
+        const value: number = typeof this.value === 'number' ? this.value : 0;
+        const range: number = max - min;
+
+        this.percentComplete =
+            range === 0 ? 0 : Math.fround(((value - min) / range) * 100);            
+    }
+}
+
+RWSProgress.defineComponent();
+
+export { RWSProgress };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/components/uploader/component.ts:
+98
+import { RWSView, RWSViewComponent, observable, attr } from '../../index';
+
+@RWSView('rws-uploader')
+class RWSUploader extends RWSViewComponent {
+
+  @observable uploadProgress: number;
+
+  @observable uploadedFile: File;
+  @observable chosenFile: File;
+  @observable uploadParams: any;
+
+  @attr onFinish: (uploadResponse: any) => void;
+  @attr onStart: (chosenFile: File, context: any) => Promise<unknown> = async (chosenFile: File) => chosenFile;
+  @attr onProgress: (progress: number) => void = (progress: number) => null;
+
+
+  async onUploadStart(): Promise<void>
+  {    
+        if(!this.uploadProgress){
+            this.uploadProgress = 0;
+        }
+
+      const response = await this.onStart(this.chosenFile, this);
+   
+      if(response === null){
+          return;
+      }
+
+      this.onFinish(response);
+
+      this.uploadedFile = this.chosenFile;
+      this.chosenFile = null;    
+  }
+
+  onChoose(): void
+  {
+      const _self = this;
+      const fileInput = this.createFileInput();
+
+      this.triggerUpload(fileInput);
+
+      fileInput.addEventListener('change', () => {
+          _self.chosenFile = fileInput.files[0]; 
+          
+          _self.uploadedFile = null;
+
+          _self.removeFileInput(fileInput);      
+      });
+  }
+
+  removeFile(){
+      this.chosenFile = null;
+  }
+
+  private createFileInput(): HTMLInputElement
+  {
+      const fileInput: HTMLInputElement = document.createElement('input');
+      fileInput.type = 'file';
+      fileInput.style.display = 'none';
+
+
+      this.shadowRoot.appendChild(fileInput);
+      return fileInput;
+  }
+
+  private triggerUpload(fileInput: HTMLInputElement): void
+  {
+      fileInput.click();
+  }
+
+  private removeFileInput(fileInput: HTMLInputElement): void
+  {
+      this.shadowRoot.removeChild(fileInput);
+  }
+
+  uploadProgressChanged(oldV: any, newV: any)
+  {
+    
+  }
+}
+
+RWSUploader.defineComponent();
+
+export { RWSUploader };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/index.d.ts:
+76
+import "../types/declarations"
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/index.ts:
+74
+// Regular imports for classes and functions
+import { observable, attr } from '@microsoft/fast-element';
+import { Transformer as HTMLTagTransformerType, Tag as HTMLTag, Attributes as HTMLAttributes } from 'sanitize-html';
+import RWSService from './services/_service';
+import ConfigService, { ConfigServiceInstance } from './services/ConfigService';
+import NotifyService, { NotifyServiceInstance } from './services/NotifyService';
+import DOMService, { DOMServiceInstance } from './services/DOMService';
+import ApiService, { ApiServiceInstance } from './services/ApiService';
+import UtilsService, { UtilsServiceInstance } from './services/UtilsService';
+import ServiceWorkerService, { ServiceWorkerServiceInstance } from './services/ServiceWorkerService';
+import { sanitizedAttr } from './components/_attrs/sanitize-html';
+import { ngAttr } from './components/_attrs/angular-attr';
+import { externalObservable } from './components/_attrs/external-observable';
+import { externalAttr } from './components/_attrs/external-attr';
+import { RWSPlugin } from './plugins/_plugin';
+import RWSClient, { RWSClientInstance } from './client';
+import RWSViewComponent from './components/_component';
+import RWSContainer from './components/_container';
+import { RWSIgnore, RWSInject, RWSView } from './components/_decorator';
+import { declareRWSComponents } from './components';
+
+// Type imports
+import type { DOMOutputType, TagsProcessorType } from './services/DOMService';
+import type { IBackendRoute, IHTTProute, IPrefixedHTTProutes } from './services/ApiService';
+import type { DefaultRWSPluginOptionsType } from './plugins/_plugin';
+import type { IRWSPlugin, IStaticRWSPlugin } from './types/IRWSPlugin';
+import type { RWSPluginEntry } from './types/IRWSConfig';
+import type { NotifyUiType, NotifyLogType } from './types/RWSNotify';
+import type { RWSDecoratorOptions } from './components/_decorator';
+import type { IAssetShowOptions } from './components/_component';
+import type IRWSConfig from './types/IRWSConfig';
+import type IRWSUser from './types/IRWSUser';
+import type RWSNotify from './types/RWSNotify';
+
+// Default export
+export default RWSClient;
+
+// Class and function exports
+export {
+    RWSClient,
+    RWSClientInstance,
+    RWSPlugin,
+    ApiService,
+    UtilsService,
+    DOMService,
+    NotifyService,
+    ConfigService,
+    ServiceWorkerService,
+    RWSService,
+    RWSViewComponent,
+    RWSContainer,
+    RWSView,
+    RWSIgnore,
+    RWSInject,
+    sanitizedAttr,
+    externalObservable,
+    externalAttr,
+    observable,
+    attr,
+    ngAttr,
+    declareRWSComponents,
+    
+    // Service instances
+    ApiServiceInstance,
+    UtilsServiceInstance,
+    DOMServiceInstance,
+    NotifyServiceInstance,
+    ConfigServiceInstance,
+    ServiceWorkerServiceInstance,
+    
+    // External types
+    HTMLTagTransformerType,
+    HTMLTag,
+    HTMLAttributes
+};
+
+// Type exports
+export type {
+    // Plugin types
+    RWSPluginEntry,
+    IRWSPlugin,
+    IStaticRWSPlugin,
+    DefaultRWSPluginOptionsType,
+    
+    // Notification types
+    NotifyUiType,
+    NotifyLogType,
+    RWSNotify,
+    
+    // Service and API types
+    DOMOutputType,
+    TagsProcessorType,
+    IBackendRoute as IRWSBackendRoute,
+    IHTTProute as IRWSHttpRoute,
+    IPrefixedHTTProutes as IRWSPrefixedHTTProutes,
+    
+    // Component and decorator types
+    RWSDecoratorOptions as IRWSDecoratorOptions,
+    IAssetShowOptions as IRWSAssetShowOptions,
+    
+    // Config and user types
+    IRWSConfig,
+    IRWSUser
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/plugins/_plugin.ts:
+84
+import RWSContainer from "../components/_container";
+import { Container } from "../components/_container";
+import RWSWindow, {loadRWSRichWindow } from '../types/RWSWindow';
+import IRWSUser from "../types/IRWSUser";
+import { RWSInfoType } from "../client/components";
+import { IRWSPlugin } from "../types/IRWSPlugin";
+
+type DefaultRWSPluginOptionsType = { enabled: boolean };
+type PluginInfoType = { name: string }
+type PluginConstructor<T extends DefaultRWSPluginOptionsType> = new (options: T) => RWSPlugin<T>;
+abstract class RWSPlugin<PluginOptions extends DefaultRWSPluginOptionsType> implements IRWSPlugin{
+    protected isLoaded: boolean = false;
+    protected options: PluginOptions;
+    protected container: Container;    
+    protected window: RWSWindow;
+
+    static container: Container;    
+    static window: RWSWindow;
+
+    constructor(options: PluginOptions = { enabled: false } as PluginOptions){
+        this.isLoaded = true;
+        this.container = RWSPlugin.container;
+        this.window = RWSPlugin.window;
+        this.options = options;
+    }
+
+    async onClientStart(): Promise<void>
+    {
+        
+    }
+
+    async onPartedComponentsLoad(componentParts: RWSInfoType): Promise<void>
+    {
+        
+    }
+
+    async onComponentsDeclare(): Promise<void>
+    {
+        
+    }
+
+    async onSetUser(user: IRWSUser): Promise<void>{
+
+    }
+
+    
+    
+    static getPlugin<Plugin extends RWSPlugin<T>, T extends DefaultRWSPluginOptionsType = DefaultRWSPluginOptionsType>(pluginClass: PluginConstructor<T>): Plugin | null 
+    {
+        const plugin = this.window.RWS.plugins[pluginClass.name];
+        return plugin ? plugin as Plugin : null;
+    }
+
+
+    static getAllPlugins(): RWSPlugin<DefaultRWSPluginOptionsType>[]
+    {
+        return Object.keys(this.window.RWS.plugins).map((key) => this.window.RWS.plugins[key]);
+    }
+}
+
+RWSPlugin.window = loadRWSRichWindow();
+RWSPlugin.container = RWSContainer();
+
+export { RWSPlugin, DefaultRWSPluginOptionsType }
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/ApiService.ts:
+88
+import TheService from './_service';
+
+//@4DI
+import ConfigService, { ConfigServiceInstance } from '../services/ConfigService';
+
+import { upload, UploadResponse } from 'upload';
+
+
+interface RequestOptions {
+    method?: string;
+    headers: HeadersInit;
+    body?: string;
+}
+
+interface IAPIOptions {
+    headers?: Headers,
+    routeParams?: {
+        [key: string]: string
+    }, 
+}
+
+interface IHTTProute {
+    name: string;
+    path: string;    
+}
+
+
+interface IPrefixedHTTProutes {
+    prefix: string;
+    routes: IHTTProute[];
+}
+
+type IBackendRoute = IHTTProute | IPrefixedHTTProutes;
+
+
+const _DEFAULT_CONTENT_TYPE = 'application/json';
+
+class ApiService extends TheService {
+    static _DEFAULT: boolean = true;
+    private token?: string;    
+
+    constructor(@ConfigService private config: ConfigServiceInstance) {
+        super();        
+    }
+
+    private addHeader(headers: Headers | [string, string][] | {[key: string]: string}, key: string, val: string)
+    {
+        if (headers instanceof Headers) {
+            headers.append(key, val);
+        } else if (Array.isArray(headers)) {
+            headers.push([key, val]);
+        } else {
+            headers[key] = val;
+        }
+    }
+
+    // Function to get headers
+    private getHeaders(optHeaders: HeadersInit = {}): HeadersInit {
+        const headers: HeadersInit = { ...optHeaders };                
+
+        if (!('Content-Type' in headers)) {
+            this.addHeader(headers, 'Content-Type', _DEFAULT_CONTENT_TYPE);
+        }            
+ 
+        if (this.token) {
+            this.addHeader(headers, 'Authorization', `Bearer ${this.token}`);            
+        }        
+
+        if((headers as any)['Content-Type']){
+            this.addHeader(headers, 'Accept', '*/*');
+        }else{
+            this.addHeader(headers, 'Accept', (headers as any)['Content-Type']);
+        }
+
+        return headers;
+    }
+
+    public setToken(token: string)
+    {
+        this.token = token;
+    }
+
+    getToken(): string
+    {
+        return this.token;
+    }
+
+    public async pureGet(url: string, options: IAPIOptions = {}): Promise<string> {
+        try {
+            const response = await fetch(url, {
+                headers: this.getHeaders(options.headers),
+            });
+            return await response.text();
+        } catch (error) {
+            console.error('GET request failed:', error);
+            throw error;
+        }
+    }
+
+    public async isGetTargetReachable(url: string, options: IAPIOptions = {}): Promise<boolean> {
+        try {    
+            return !!(await this.pureGet(url, options));
+        } catch (error) {
+            return false;
+        }
+    }
+
+    public async get<T>(url: string, options: IAPIOptions = {}): Promise<T> {
+        try {
+            const response = await fetch(url, {
+                headers: this.getHeaders(options.headers),
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('GET request failed:', error);
+            throw error;
+        }
+    }
+    
+    public async post<T, P extends object = object>(url: string, payload?: P, options: IAPIOptions = {}): Promise<T> {
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: this.getHeaders(options.headers),
+                body: payload ? JSON.stringify(payload) : null,
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('POST request failed:', error);
+            throw error;
+        }
+    }
+    
+    public async put<T, P extends object = object>(url: string, payload?: P, options: IAPIOptions = {}): Promise<T> {
+        try {
+            const response = await fetch(url, {
+                method: 'PUT',
+                headers: this.getHeaders(options.headers),
+                body: payload ? JSON.stringify(payload) : null,
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('PUT request failed:', error);
+            throw error;
+        }
+    }
+    
+    public async delete<T>(url: string, options: IAPIOptions = {}): Promise<T> {
+        try {
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: this.getHeaders(options.headers),
+            });
+            return await response.json();
+        } catch (error) {
+            console.error('DELETE request failed:', error);
+            throw error;
+        }
+    }
+
+    private getBackendUrl(routeName: string, params: {[key: string]: string} = {})
+    {
+       
+
+        const routesPackage = this.config.get('backendRoutes');
+
+        let routes: IHTTProute[] = [];       
+
+        routesPackage.forEach((item: IBackendRoute) => {
+            // Check if item is an instance of IPrefixedHTTProutes
+            if ('prefix' in item && 'routes' in item && Array.isArray(item.routes)) {
+                // Handle the case where item is of type IPrefixedHTTProutes
+                routes = [...routes, ...item.routes.map((subRouteItem: IHTTProute): IHTTProute => {
+                    const subRoute: IHTTProute = {
+                        path: item.prefix + subRouteItem.path,
+                        name: subRouteItem.name
+                    };
+            
+                    return subRoute;
+                })];
+            } else {
+                // Handle the case where item is of type IHTTProute
+                routes.push(item as IHTTProute);
+            }          
+        });        
+
+        const route = routes.find((item: IHTTProute) => item.name === routeName);        
+
+        if(!route){
+            throw new Error(`Backend route '${routeName}' does not exist.`);
+        }
+
+        let apiPath = route.path;
+
+        Object.keys(params).forEach((paramKey: string) => {
+            const paramValue = params[paramKey];
+
+            apiPath = apiPath.replace(`:${paramKey}`, paramValue);
+        });
+
+        console.log('bck', this.config.get('backendUrl'));
+
+        return `${this.config.get('backendUrl')}${this.config.get('apiPrefix') || ''}${apiPath}`;
+    }
+
+    async uploadFile(url: string, file: File, onProgress: (progress: number) => void, payload: any = {}): Promise<UploadResponse>
+    {
+        return upload(
+            
+            url,
+            {
+                file,
+                ...payload
+            },
+            {
+                onProgress,
+                headers: this.token ? { Authorization: `Bearer ${this.token}` } : null,
+            }
+        );
+    }
+
+    public back = {
+        get: <T>(routeName: string, options?: IAPIOptions): Promise<T> => this.get(this.getBackendUrl(routeName, options?.routeParams), options),
+        post: <T, P extends object = object>(routeName: string, payload?: P, options?: IAPIOptions): Promise<T> => this.post(this.getBackendUrl(routeName, options?.routeParams), payload, options),
+        put: <T, P extends object = object>(routeName: string, payload: P, options?: IAPIOptions): Promise<T> => this.put(this.getBackendUrl(routeName, options?.routeParams), payload, options),
+        delete: <T>(routeName: string, options?: IAPIOptions): Promise<T> => this.delete(this.getBackendUrl(routeName, options?.routeParams), options),
+        uploadFile: (routeName: string, file: File, onProgress: (progress: number) => void, options: IAPIOptions = {}, payload: any = {}): Promise<UploadResponse> => this.uploadFile(this.getBackendUrl(routeName, options?.routeParams), file, onProgress, payload),
+    };
+
+    connectToAmplify()
+    {        
+        // "use client"       
+        // const client = generateClient<Schema>() // use this Data client for CRUDL requests
+        
+
+        // /*== STEP 3 ===============================================================
+        // Fetch records from the database and use them in your frontend component.
+        // (THIS SNIPPET WILL ONLY WORK IN THE FRONTEND CODE FILE.)
+        // =========================================================================*/
+
+        // /* For example, in a React component, you can use this snippet in your
+        // function's RETURN statement */
+        // // const { data: todos } = client.models.Todo.list()
+
+        // // return <ul>{todos.map(todo => <li key={todo.id}>{todo.content}</li>)}</ul>
+    }
+}
+
+export default ApiService.getSingleton();
+export { IBackendRoute, RequestOptions, ApiService as ApiServiceInstance, IHTTProute, IPrefixedHTTProutes };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/ConfigService.ts:
+91
+import TheService from './_service';
+import IRWSConfig from '../types/IRWSConfig';
+import { RWSFillBuild } from '../components/_decorators/RWSFillBuild';
+import { sendEventToOutside } from '../components/_event_handling';
+
+
+
+
+const __SENT_TO_COMPONENTS: string[] = [];
+
+@RWSFillBuild()
+class ConfigService extends TheService {  
+    static _DEFAULT: boolean = false;
+    static isLoaded: boolean = false;
+    
+    _DEFAULTS: Partial<IRWSConfig> = {};
+    _BUILD_OVERRIDE: IRWSConfig = {};
+
+    private data: IRWSConfig = {};    
+  
+    constructor() {
+        super();       
+    }    
+  
+    public get(key: keyof IRWSConfig): any
+    {       
+                
+        if(!this._DEFAULTS){
+            throw new Error('No _DEFAULTS loaded!');
+        }        
+
+        
+        const isInDefaults: boolean = Object.keys(this._DEFAULTS).includes(key as string);
+        const isInData: boolean = Object.keys(this.data).includes(key as string);
+        const isInBuildVars: boolean = Object.keys(this._BUILD_OVERRIDE).includes(key as string);
+
+        let isDev = false;
+
+        if((Object.keys(this._BUILD_OVERRIDE).includes('dev'))){
+            isDev = Object.keys(this._BUILD_OVERRIDE).includes('dev') && this._BUILD_OVERRIDE.dev;
+        }
+
+        if(!isInData){        
+            let defaultVal = null;
+
+            if(isInDefaults){
+                defaultVal = this._DEFAULTS[key];                   
+            }                             
+                        
+            if(defaultVal && defaultVal[0] === '@'){
+                defaultVal = this.data[((defaultVal as string).slice(1)) as keyof IRWSConfig];
+            }
+
+            if(isInBuildVars && Object.keys(this._BUILD_OVERRIDE).includes(key as string)){
+                if(isDev){
+                    console.warn(`.rws.json override [${key}]:`), this._BUILD_OVERRIDE[key];
+                }
+
+                defaultVal = this._BUILD_OVERRIDE[key];
+            }
+
+            return defaultVal;
+        }        
+
+        return this.data[key as keyof IRWSConfig];
+    }
+
+    public set<V extends keyof IRWSConfig>(key: V, value: IRWSConfig[V]){
+        this.data[key] = value;
+    }
+  
+    public async reloadConfig(cfgString: string): Promise<ConfigService> 
+    {
+        const module = await import(/* webpackIgnore: true */ cfgString);
+        const cfg: () => IRWSConfig = module.defaults;      
+        this.data = cfg();
+  
+        return this;
+    }
+
+    async waitForConfig(tagName: string): Promise<boolean>
+    {        
+        let t: NodeJS.Timeout | null = null;
+
+        if(!this.data._noLoad || __SENT_TO_COMPONENTS.includes(tagName)){
+            return;
+        }
+
+        __SENT_TO_COMPONENTS.push(tagName); 
+
+        sendEventToOutside<{tagName: string}>('rws_cfg_call', {tagName})
+
+        return new Promise((resolve) => {
+            const tick = () => {
+                if(ConfigService.isLoaded){                                    
+                    clearTimeout(t);    
+                    resolve(true);
+                    return;
+                }
+    
+                t = setTimeout(tick, 200);
+            };
+    
+            t = setTimeout(tick, 200);
+        });       
+    }
+
+    isLoaded(): boolean
+    {
+        return ConfigService.isLoaded;
+    }
+
+    mergeConfig(config: IRWSConfig) {
+        const unloaded = ConfigService.isLoaded;     
+
+        this.data.plugins = [];
+        
+        this.data = Object.assign(this.data, config);
+
+        if(unloaded){
+            ConfigService.isLoaded = true;
+        }
+
+        return this.data;
+    }
+
+    getData(): IRWSConfig
+    {
+        return this.data;
+    }
+}
+
+export default ConfigService.getSingleton('ConfigService');
+
+export { ConfigService as ConfigServiceInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/DOMService.ts:
+88
+import RWSService from './_service';
+import { DOM } from '@microsoft/fast-element';
+import htmlSanitizer, { Transformer, IOptions } from 'sanitize-html';
+
+type TagsProcessorType = { [tagName: string]: string | Transformer };
+type DOMOutputType<T extends Element> = NodeListOf<T> | T | null;
+
+//@ts-ignore
+declare let trustedTypes: TrustedTypePolicyFactory;
+
+
+class DOMService extends RWSService {
+    static _DEFAULT: boolean = true;
+    parse$<T extends Element>(input: NodeListOf<T>, directReturn: boolean = false): DOMOutputType<T> {    
+        if(input.length > 1 || directReturn) {
+            return input;
+        }
+    
+        if(input.length === 1) {
+            return input[0];
+        }
+    
+        return null;
+    }
+
+    $<T extends Element>(shadowRoot: ShadowRoot, selectors: string, directReturn: boolean = false): DOMOutputType<T> {        
+        const elements = shadowRoot.querySelectorAll<T>(selectors);
+        return elements ? this.parse$<T>(elements, directReturn) : null;    
+    }
+
+    async scrollToBottom(scrollContainer: HTMLDivElement, contentSelector: string = '.scroll-content') {
+        if (scrollContainer) {
+            const scrollContent = scrollContainer.querySelector(contentSelector) as HTMLElement;
+
+            if (scrollContent) {
+                scrollContainer.scrollTop = (scrollContent.scrollHeight - scrollContainer.clientHeight) + 150;              
+            }
+        }        
+    }
+
+    setHTMLPolicy(policyName: string, policyImplementation: (html: string) => string): void
+    {
+        const myPolicy = trustedTypes.createPolicy(policyName, {
+            createHTML(html: string) {              
+                return policyImplementation(html);
+            }
+        });
+          
+        DOM.setHTMLPolicy(myPolicy as any);        
+    }
+
+    private enforceAllowedTags(htmlText: string, allowedHTMLTags: string[]): string
+    {
+        // Create a regular expression pattern to match HTML tags
+        const tagPattern = /<\s*\/?\s*([^\s>/]+)(\s+[^>]*)?>/g;
+
+        // Replace any tags in the htmlText that are not in allowedHTMLTags array
+        const sanitizedText = htmlText.replace(tagPattern, (match, tag, attributes) => {
+            const lowerCaseTag = tag.toLowerCase();
+
+            if (allowedHTMLTags.includes(lowerCaseTag)) {
+                return match; // Return the original tag if it's allowed
+            } else {
+                // Replace the disallowed tag with an empty string
+                return '';
+            }
+        });
+
+        return sanitizedText;
+    }
+
+    sanitizeHTML(
+        line: string, 
+        allowedHTMLTags: string[] = null,         
+        sanitizeOptions: IOptions = {})
+    {
+        const output: string = line.trim(); 
+        
+        if(allowedHTMLTags){
+            sanitizeOptions.allowedTags = allowedHTMLTags;
+        }     
+
+        const sanitized = htmlSanitizer(output, sanitizeOptions);
+
+        return sanitized;
+    }
+
+    async onDOMLoad(): Promise<void>
+    {
+        return new Promise<void>((resolve) => {
+            document.addEventListener('DOMContentLoaded', () => {
+                resolve();
+            });
+        });
+    }
+}
+
+
+
+export default DOMService.getSingleton();
+export { DOMOutputType, DOMService, TagsProcessorType, DOMService as DOMServiceInstance }; 
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/NotifyService.ts:
+91
+import RWSNotify, { NotifyLogType } from '../types/RWSNotify';
+import TheService from './_service';
+/**
+ * @class
+ * @extends TheService
+ */
+class NotifyService extends TheService {
+    static _DEFAULT: boolean = true;
+    private notifier: RWSNotify;
+
+    public setNotifier(notifier: RWSNotify)
+    {
+        this.notifier = notifier;
+    }
+
+    public alert(message: string, logType: NotifyLogType = 'info', onConfirm?: (params: any) => void, alertOptions?: any): any
+    {
+        if(!this.notifier){
+            console.warn('No notifier added to RWS Client');
+            return;
+        }
+        
+        return this.notifier(message, logType, 'alert', onConfirm, alertOptions);
+    }
+
+    public notify(message: string, logType: NotifyLogType = 'info', onConfirm?: (params: any) => void): void
+    {
+        if(!this.notifier){
+            console.warn('No notifier added to RWS Client');
+            return;
+        }
+
+        this.notifier(message, logType, 'notification', onConfirm);
+    }
+
+    public silent(message: string, logType: NotifyLogType = 'info'): void
+    {
+        if(!this.notifier){
+            console.warn('No notifier added to RWS Client');
+            return;
+        }
+
+        this.notifier(message, logType, 'silent');
+    }
+}
+
+export default NotifyService.getSingleton();
+export { NotifyService as NotifyServiceInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/ServiceWorkerService.ts:
+98
+import RWSService from './_service';
+
+
+class ServiceWorkerService extends RWSService {   
+    static _DEFAULT: boolean = true;
+    async registerServiceWorker(): Promise<void>
+    {
+        await ServiceWorkerService.registerServiceWorker();
+    }
+
+    static registerServiceWorker(): Promise<void>
+    {
+        if ('serviceWorker' in navigator) 
+        {
+            navigator.serviceWorker.getRegistrations().then(registrations => {
+                if (registrations.length) {
+                    return;
+                }
+
+                try {
+                    return (navigator.serviceWorker.register(
+                        '/service_worker.js',
+                        {
+                            scope: '/'          
+                        }
+                    ).then((registration) => {
+                        if (registration.installing) {
+                            console.log('Service worker installing');
+                        } else if (registration.waiting) {
+                            console.log('Service worker installed');
+                        } else if (registration.active) {
+                            console.log('Service worker active');
+                        }
+                    }));                
+                            
+                } catch (error) {      
+                    console.error(`Registration failed with ${error}`);
+                }
+            });    
+            
+            return;
+        }
+    }
+
+    sendDataToServiceWorker(type: string, data: any, asset_type: string = 'data_push')
+    {
+        if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+                command: type,
+                asset_type,
+                params: data
+            });
+        } else {
+            throw new Error('Service worker is not available');
+        }
+    }
+}
+
+
+export default ServiceWorkerService.getSingleton();
+export { ServiceWorkerService as ServiceWorkerServiceInstance };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/UtilsService.ts:
+90
+import TheService from './_service';
+import ApiService, {ApiServiceInstance} from './ApiService';
+
+import { RawSourceMap  } from 'source-map';
+
+class UtilsService extends TheService {    
+    static _DEFAULT: boolean = true;
+    mergeDeep<T>(target: T | any, source: T  | any): T 
+    {
+        const isObject = (obj: any) => obj && typeof obj === 'object';
+
+        if (!isObject(target) || !isObject(source)) {
+            return source;
+        }
+
+        Object.keys(source).forEach(key => {
+            const targetValue = target[key];
+            const sourceValue = source[key];
+
+            if (Array.isArray(targetValue) && Array.isArray(sourceValue)) {
+                target[key] = targetValue.concat(sourceValue);
+            } else if (isObject(targetValue) && isObject(sourceValue)) {
+                target[key] = this.mergeDeep(Object.assign({}, targetValue), sourceValue);
+            } else {
+                target[key] = sourceValue;
+            }
+        });
+
+        return target;
+    }
+
+    async fetchSourceMap(jsFilePath: string): Promise<RawSourceMap> 
+    {
+        // Assuming the source map URL is the JS file URL with a '.map' extension
+        const sourceMapUrl = jsFilePath;
+
+        try {
+            const response = await fetch(sourceMapUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Failed to fetch source map:', error);
+            return null;
+        }
+    }
+
+    async getCurrentLineNumber(error: Error = null): Promise<number> {
+        if(!error){
+            error = new Error();
+        }  
+        
+        return 0;
+    }    
+}
+
+export default UtilsService.getSingleton();
+
+export { UtilsService as UtilsServiceInstance };
+
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/services/_service.ts:
+86
+import RWSContainer from '../components/_container';
+import { loadRWSRichWindow } from '../types/RWSWindow';
+import { DI, InterfaceSymbol, Key,Registration } from '../../foundation/rws-foundation';
+export interface IWithDI<T> {
+    new (...args: any[]): T;
+    getSingleton: <T extends Key>(this: IWithDI<T>) => InterfaceSymbol<T>;
+    register: <T extends Key>(this: IWithDI<T>) => void;    
+}
+
+export default abstract class TheRWSService {
+    _RELOADABLE: boolean = false;
+    static _IN_CLIENT: boolean = false;
+    static _DEFAULT: boolean = false;
+
+    constructor() {    
+    }
+
+    register<T extends Key>(this: IWithDI<T>): void 
+    {
+        this.getSingleton();
+    }
+    
+    getSingleton<T extends Key>(this: IWithDI<T>): InterfaceSymbol<T> 
+    {
+        return this.getSingleton();
+    }
+
+    public static register<T extends Key>(this: IWithDI<T>): void
+    {                                        
+        this.getSingleton();
+    }
+    
+    public static getSingleton<T extends Key>(this: IWithDI<T>, serviceName: string = null): InterfaceSymbol<T>
+    {                  
+        const richWindow = loadRWSRichWindow();        
+
+        if(!serviceName){
+            serviceName = this.name;
+        }
+
+        if(Object.keys(richWindow.RWS._registered).includes(serviceName)){            
+            return richWindow.RWS._registered[serviceName];        
+        }
+
+        const interf = DI.createInterface<T>(serviceName);
+   
+        RWSContainer().register(
+            Registration.singleton(interf, this)
+        );
+
+        richWindow.RWS._registered[serviceName] = interf;
+
+        return interf;
+    }
+
+    isDefault(): boolean
+    {
+        return (this as any).constructor._DEFAULT;
+    }
+    
+    isInClient(): boolean
+    {
+        return (this as any).constructor._IN_CLIENT;
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/IRWSConfig.ts:
+85
+import RWSViewComponent from '../components/_component';
+import { RWSPlugin, DefaultRWSPluginOptionsType } from '../plugins/_plugin';
+import { IStaticRWSPlugin } from '../types/IRWSPlugin';
+
+export type IFrontRoutes = Record<string, unknown>; 
+export type RWSPluginEntry<T extends DefaultRWSPluginOptionsType = DefaultRWSPluginOptionsType> = new (...args: any[]) => RWSPlugin<T>;
+
+export default interface IRWSConfig {
+    [key: string]: any
+    dev?: boolean
+    defaultLayout?: typeof RWSViewComponent
+    backendUrl?: string
+    wsUrl?: string
+    backendRoutes?: any[]
+    apiPrefix?: string
+    routes?: IFrontRoutes
+    transports?: string[]
+    user?: any
+    ignoreRWSComponents?: boolean
+    pubUrl?: string
+    pubUrlFilePrefix?: string
+    partedDirUrlPrefix?: string
+    dontPushToSW?: boolean
+    parted?: boolean,
+    rwsDefines?: {[key: string]: any}
+    partedFileDir?: string
+    partedPrefix?: string
+    plugins?: IStaticRWSPlugin<DefaultRWSPluginOptionsType>[]
+    routing_enabled?: boolean
+    _noLoad?: boolean    
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/IRWSPlugin.ts:
+85
+import { DefaultRWSPluginOptionsType } from "../plugins/_plugin";
+import IRWSUser from "./IRWSUser";
+import { Container } from "../components/_container";
+import RWSWindow from "../types/RWSWindow";
+import { RWSInfoType } from "../client/components";
+
+
+export interface IRWSPlugin {
+    onClientStart(): Promise<void>
+    onPartedComponentsLoad(componentParts: RWSInfoType): Promise<void>
+    onComponentsDeclare(): Promise<void>
+    onSetUser(user: IRWSUser): Promise<void>
+}
+
+type IStaticRWSPluginEntry<PluginOptions extends DefaultRWSPluginOptionsType = DefaultRWSPluginOptionsType> = {    
+    new (...args: any[]): IRWSPlugin;
+    container: Container;    
+    window: RWSWindow;
+}
+
+export type IStaticRWSPlugin<PluginOptions extends DefaultRWSPluginOptionsType> =  IStaticRWSPluginEntry<PluginOptions> | [IStaticRWSPluginEntry<PluginOptions>, PluginOptions]
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/IRWSUser.ts:
+83
+export default interface IRWSUser {
+    email: string;
+    mongoId: string;
+    name: string;
+    message: string;
+    jwt_token: string,
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/IRWSViewComponent.ts:
+92
+import { ViewTemplate } from '@microsoft/fast-element';
+import { DOMOutputType } from '../services/DOMService';
+
+type IAssetShowOptions = Record<string, any>;
+
+interface IRWSViewComponent extends Node {    
+    __isLoading: boolean;
+    routeParams: Record<string, string>;
+    trashIterator: number;
+    fileAssets: { [key: string]: ViewTemplate };
+
+    connectedCallback(): void;
+
+    passRouteParams(routeParams?: Record<string, string>): void;
+
+    showAsset(assetName: string, options?: IAssetShowOptions): ViewTemplate<any>;
+
+    on<T>(type: string, listener: (event: CustomEvent<T>) => any): void;
+
+    $emitDown<T>(eventName: string, payload: T): void;
+
+    parse$<T extends Element>(input: NodeListOf<T>, directReturn?: boolean): DOMOutputType<T>;
+
+    $<T extends Element>(selectors: string, directReturn?: boolean): DOMOutputType<T>;
+
+    loadingString<T, C>(item: T, addContent: (cnt: C | { output: string }, paste?: boolean, error?: boolean) => void, shouldStop: (stopItem: T, addContent: (cnt: C | { output: string }, paste?: boolean,error?: boolean) => void) => Promise<boolean>): Promise<void>
+
+    onDOMLoad(): Promise<void>;    
+
+    forceReload(): void;
+
+    hotReplacedCallback(): void;    
+
+    sendEventToOutside<T>(eventName: string, data: T): void;           
+}
+
+export {IRWSViewComponent, IAssetShowOptions};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/RWSNotify.ts:
+84
+type NotifyUiType = 'alert' | 'notification' | 'silent';
+type NotifyLogType = 'info' | 'error' | 'warning';
+
+type RWSNotify =  (message: string, logType?: NotifyLogType, uiType?: NotifyUiType, onConfirm?: (params?: any) => void, notifierOptions?: any) => any;
+
+export default RWSNotify;
+export { NotifyUiType, NotifyLogType };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/src/types/RWSWindow.ts:
+84
+import { RWSClientInstance } from '../client';
+import { Container, InterfaceSymbol } from '../components/_container';
+
+import { RWSPlugin, DefaultRWSPluginOptionsType } from '../plugins/_plugin';
+import { v1 as uuid} from 'uuid';
+export type RWSWindowComponentInterface = (params?: any) => void;
+export type RWSWindowComponentEntry = { interface: RWSWindowComponentInterface, component: any };
+export type RWSWindowComponentRegister = { [key: string]: RWSWindowComponentEntry};
+
+export function loadRWSRichWindow(): RWSWindow
+{
+    const richWindow: RWSWindow = window;
+
+    if(!richWindow.RWS){
+        const newNode = document.createElement('main');
+        newNode.id = 'rws-cntr-id-' + uuid();
+        
+        console.log('\x1b[1m[RWS]\x1b[0m Created new container node: ', newNode.id);
+
+        richWindow.RWS = {
+            client: null,
+            components: {},
+            plugins: {},
+            container: null,
+            container_node: newNode,
+            _registered: {}
+        };
+    }    
+
+    return richWindow;
+}
+
+export default interface RWSWindow extends Window {
+    RWS?: {
+        client?: RWSClientInstance
+        components: RWSWindowComponentRegister
+        plugins: {[key: string]: RWSPlugin<DefaultRWSPluginOptionsType>}
+        container: Container | null
+        container_node: Element | null
+        _registered: {[key: string]: InterfaceSymbol<any>};
+    }
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/types/declarations.d.ts:
+85
+declare module '*.scss' {
+    const content: string;
+    export default content;
+}
+
+declare module '*.html' {
+    const content: string;
+    export default content;
+}
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-client/types/docs-typings.d.ts:
+85
+// custom-typings.d.ts
+declare module 'glob' {
+    import { Minimatch } from 'minimatch';
+
+    namespace glob {
+        interface IOptions {
+            // Add only the options you need or leave it empty to bypass the error
+        }
+
+        interface IGlobBase {
+            minimatch: Minimatch;
+            options: IOptions;
+        }
+    }
+}
+
+
