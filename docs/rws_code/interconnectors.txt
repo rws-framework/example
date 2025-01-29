@@ -1,0 +1,422 @@
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/index.ts:
+88
+import WSService from './services/WSService';
+
+export { WSService }; 
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/plugin.ts:
+89
+import { RWSClient, RWSClientInstance, RWSPlugin, DefaultRWSPluginOptionsType, NotifyService, NotifyServiceInstance, ConfigService, ConfigServiceInstance, IRWSUser } from '@rws-framework/client';
+import WSService, { WSServiceInstance, WSEvent, WSStatus } from './services/WSService';
+
+WSService;
+
+interface WSOptions extends DefaultRWSPluginOptionsType {
+    auto_notify: boolean;
+}
+
+class RWSWebsocketsPlugin extends RWSPlugin<WSOptions> {
+    async onClientStart(): Promise<void> 
+    {                       
+        const wsService: WSServiceInstance = this.container.get(WSService);
+        const notifyService: NotifyServiceInstance = this.container.get(NotifyService);        
+
+        if(this.options.auto_notify){
+            wsService.on('ws:disconnected', (instance, params) => {
+                notifyService.notify(`Your websocket client disconnected from the server. Your ID was <strong>${params.socketId}</strong>`, 'error');
+            });
+    
+            wsService.on('ws:connected', (instance, params) => {
+                notifyService.notify('You are connected to websocket. Your ID is: <strong>' + instance.socket().id + '</strong>', 'info');
+            });
+    
+            wsService.on('ws:reconnect', (instance, params) => {
+                console.info('WS RECONNECTION ' + (params.reconnects + 1));
+                notifyService.notify('Your websocket client has tried to reconnect to server. Attempt #' + (params.reconnects + 1), 'warning');
+            });     
+        }                
+    };
+
+    async onSetUser(user: IRWSUser): Promise<void> {        
+        this.container.get(WSService).setUser(user);         
+    }
+}
+
+export { RWSWebsocketsPlugin, WSService, WSServiceInstance, WSEvent, WSStatus, WSOptions };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/services/WSService.ts:
+101
+import TheService from '@rws-framework/client/src/services/_service';
+import ITheUser from '@rws-framework/client/src/types/IRWSUser';
+import { io, Socket } from 'socket.io-client';
+import { v4 as uuid } from 'uuid';
+import { ping, disconnect as disconnectWs, reconnect as reconnectWs } from './_ws_handlers/ConnectionHandler';
+import WSEventHandler from './_ws_handlers/EventHandler';
+import WSMessageHandler from './_ws_handlers/MessageHandler';
+import { ConfigService, ConfigServiceInstance } from '@rws-framework/client';
+
+type WSEvent = string;
+type WSStatus = 'WS_OPEN' | 'WS_CLOSED' | 'WS_CONNECTING';
+
+
+const  wsLog = async (fakeError: Error, text: any, socketId: string = null, isError: boolean = false): Promise<void> => {  
+    const logit = isError ? console.error : console.log;
+    logit(`<WS-CLIENT>${socketId ? `(${socketId})` : ''}`, text);
+};
+
+class WSService extends TheService {
+    static _DEFAULT: boolean = false;
+    static websocket_instance: Socket;
+    private _ws: Socket | null = null;
+  
+  
+    private user: ITheUser | null = null;
+    private url: string | null = null;
+  
+    private _status_string: WSStatus = 'WS_CLOSED';
+
+    public _wsId: string | null = null;
+
+  
+    public _interval: any = null;    
+    public _connecting: boolean = false;
+    public _shut_down: boolean = false;
+    public reconnects: number = 0;
+
+    public eventListeners: Map<string, Array<(instance: WSService, params: any) => any>> = new Map();
+
+    constructor(@ConfigService private configService: ConfigServiceInstance){
+        super();
+    }
+
+    public init(): WSService {
+        const url: string = this.configService.get('wsUrl');
+        const transports: string[] = this.configService.get('transports');        
+        
+        this._connecting = true;        
+        wsLog(new Error(), 'Connecting to: ' + url);
+        this.url = url;     
+        const user = this.user;     
+
+        const headers = this.user?.jwt_token ? {
+            Authorization: 'Bearer ' + this.user?.jwt_token,
+        } : {};
+
+        if(!WSService.websocket_instance){            
+            const tokenString = headers.Authorization ? `?token=${this.user.jwt_token}` : '' ;
+            WSService.websocket_instance = io(this.url + tokenString, { 
+                auth: user?.jwt_token ? { token:  user.jwt_token} : {}, 
+                transports:  transports || null 
+            });
+        }          
+        //, transports:  ['websocket']
+        this._ws = WSService.websocket_instance;
+
+  
+
+        if (this.user?.mongoId) {
+            this._wsId = this.user.mongoId;
+        }else{
+            this._wsId = uuid();
+        }
+
+        let socketId: string = null;
+
+        this._ws.on('connect', () => {
+            socketId = this.socket().id;         
+
+            wsLog(new Error(), 'Socket connected with ID: ' + socketId, socketId);
+
+            this._connecting = false;
+            this._ws.connected = true;  
+
+            this.executeEventListener('ws:connected');               
+        
+            wsLog(new Error(), 'Emitting ping to server', socketId);
+            ping(this);
+        });
+        
+        this._ws.on('__PONG__', async (data: any) => {              
+            if (data === '__PONG__') {
+                wsLog(new Error(), 'Recieving valid ping callback from server', socketId);                                                           
+                return;
+            }
+        });
+
+        this._ws.on('disconnect', async (e) => {              
+            wsLog(new Error(), 'Disconnected from the server', socketId);              
+            this.executeEventListener('ws:disconnected', { socketId: socketId, error: e });
+            socketId = null;
+        });
+
+        this._ws.on('error', async (error: Error) => {
+            wsLog(error, 'Socket error:', socketId, true);
+            console.error(error);
+            this.executeEventListener('ws:error', { socketId: socketId, error: error });
+
+        });
+        
+
+        // this._interval = setInterval(() => {
+        //     ping(_self);
+        // }, 3000);
+
+        this.reconnects = 0;
+
+        if (this._ws?.connected) {
+            this._connecting = false;
+        }
+
+        this.statusChange();
+
+        return this;
+    }
+
+    public getStatus(): WSStatus {
+        return this._status_string;
+    }  
+
+    public isActive(): boolean {
+        return !this._connecting && this._ws?.connected;
+    }
+
+    setUser(user: ITheUser): void
+    {
+        this.user = user;
+    }
+
+    public listenForError<T extends Error | any = Error | any>(callback: (data: { error: T }) => void, method: string): void
+    {
+        this.socket().on(method, (rawData: string) => {            
+            callback(JSON.parse(rawData));
+        });
+    }
+
+    public listenForMessage(callback: (data: any, isJson?: boolean) => void, method?: string): () => void 
+    {
+        if(!this.isActive()){
+            this.init();
+        }
+
+        const disableHandler = () => {
+            this.socket().off(method, callback);
+        };
+
+        WSMessageHandler.listenForMessage(this, callback, method);
+
+        return disableHandler.bind(this);
+    }
+
+    async waitForStatus(): Promise<void>
+    {
+        return new Promise((resolve, reject) => {
+            let iteration = 0;
+            const t = setInterval(() => {
+                if(iteration > 4){
+                    clearInterval(t);
+                    reject('Websocket did not connect!');                  
+                }
+
+                if(this.isActive()){                        
+                    clearInterval(t);
+                    resolve();                  
+                }
+
+                iteration++;
+            }, 1000);
+        });
+    }
+
+    public sendMessage<T>(method: string, msg: T): void {  
+        if(!this.isActive()){
+            this.init();
+        }
+
+        WSMessageHandler.sendMessage<T>(this, method, msg);
+    }
+
+    public statusChange(): void {
+        let status: WSStatus = 'WS_CLOSED';
+        if (this._connecting) {
+            status = 'WS_CONNECTING';
+        } else if (this.isActive()) {
+            status = 'WS_OPEN';
+        }
+
+        this.executeEventListener('ws:status_change', { status });      
+        this._status_string = status;
+    }
+
+    public on(event: WSEvent, callback: (wsInstance: WSService, params: any) => any): void {
+        WSEventHandler.on(this, event, callback);
+    }
+
+    public executeEventListener(event: WSEvent, params: any = {}): void {
+        WSEventHandler.executeEventListener(this, event, params);
+    }
+
+    public socket(): Socket
+    {
+        return this._ws;
+    }
+
+    public disconnect()
+    {
+        disconnectWs(this);
+    }
+
+    public reconnect()
+    {
+        reconnectWs(this);
+    }
+
+    getUser(): ITheUser {
+        return this.user;
+    }
+
+    getUrl(): string {
+        return this.url;
+    }
+}
+
+export default WSService.getSingleton();
+export { WSService as WSServiceInstance, WSEvent, WSStatus };
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/services/_ws_handlers/ConnectionHandler.ts:
+122
+import { WSServiceInstance } from '@rws-framework/nest-interconnectors';
+
+
+function ping(instance: WSServiceInstance): void {    
+    instance.socket().emit('__PING__');
+    // instance._timeout = setTimeout(() => {
+    //     reconnect(instance);
+    // }, 3000);
+}
+
+
+function reconnect(instance: WSServiceInstance): void {    
+    disconnect(instance, true);
+    const rc = instance.reconnects;
+    if (rc < 2) {
+        instance.executeEventListener('ws:reconnect', { reconnects: rc + 1 });        
+        instance._connecting = true;
+        instance.reconnects++;
+        setTimeout(() => {
+            instance.init();
+            instance.reconnects = rc + 1;
+        }, 1500);
+
+        instance.statusChange();
+    } else {
+        disconnect(instance);
+    }
+}
+function disconnect(instance: WSServiceInstance, noEvent = false): void {
+
+    if(instance.socket()){
+        instance.socket().disconnect();
+    }
+
+    if(!noEvent){
+        console.log(`{WS}${instance.socket() ? `(${instance.socket().id}):` : ''} Disconnected from WS`);
+        instance.executeEventListener('ws:disconnected');
+    }
+    
+    clearInterval(instance._interval);
+
+    instance._connecting = false;
+    instance._shut_down = true;
+
+    instance.statusChange();
+}    
+
+export {
+    ping,
+    reconnect,
+    disconnect
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/services/_ws_handlers/EventHandler.ts:
+117
+import { WSServiceInstance, WSEvent } from '@rws-framework/nest-interconnectors';
+
+function on(instance: WSServiceInstance, event: WSEvent, callback: (wsInstance: WSServiceInstance, params: any) => any): void {
+    let listeners = instance.eventListeners.get(event);
+    if (!listeners) {
+        listeners = [];
+        instance.eventListeners.set(event, listeners);
+    }
+    listeners.push(callback);
+}
+
+function executeEventListener(instance: WSServiceInstance, event: WSEvent, params: any = {}): void {    
+    const listeners = instance.eventListeners.get(event);
+    if (listeners) {
+        listeners.forEach((callback: (instance: WSServiceInstance, params: any) => void) => {
+            try {
+                callback(instance, params);
+            } catch (e) {
+                console.error(`Error executing callback for event '${event}':`, e);
+            }
+        });
+    }
+}
+
+export default {
+    on,
+    executeEventListener
+};
+
+/var/www/rws-example/docs/.bin/gh-txt-generate/tmp/rws-nest-interconnectors/src/services/_ws_handlers/MessageHandler.ts:
+119
+import { WSServiceInstance } from '../WSService';
+
+function listenForMessage(instance: WSServiceInstance, callback: (data: any, isJson?: boolean) => void, method?: string): WSServiceInstance {
+    if (!instance.socket()) {
+        throw new Error('socket is not active');
+    }
+
+    instance.socket().on(method || 'message', (data: any) => {
+        try {            
+            const parsedData = JSON.parse(data);
+            if (!!method && parsedData.method === method) {                              
+                callback(parsedData, true);
+                instance.executeEventListener('ws:message_received', { message: parsedData });
+
+            } else if (!method) {
+                callback(parsedData, true);
+            }            
+        } catch (e) {
+            console.error(e);
+            
+            if (!method) {                
+                callback(data);
+            }
+        }
+    });
+
+    return instance;
+}
+
+function sendMessage<T>(instance: WSServiceInstance, method: string, msg: T): void {
+    if (!instance.socket()) {
+        throw new Error('socket is not active');
+    }
+
+    const the_message = {
+        user_id: instance.socket().id,
+        method: method,
+        msg: msg
+    };
+
+    
+    instance.socket().emit(method, JSON.stringify(the_message));
+    instance.executeEventListener('ws:message_sent', { message: the_message });
+} 
+
+export default{
+    listenForMessage,
+    sendMessage
+};
+

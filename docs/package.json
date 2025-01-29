@@ -1,0 +1,44 @@
+{
+    "name": "rws_docs",
+    "version": "1.0.0",
+    "description": "",
+    "main": "src/index.ts",
+    "scripts": {
+        "watch": "webpack --config webpack.config.js --watch",
+        "build": "webpack --config webpack.config.js"
+    },
+    "author": "papablack",
+    "license": "ISC",
+    "dependencies": {
+        "@rws-framework/browser-router": "^0.3.5",
+        "@rws-framework/client": "^2.12.0",        
+        "@shoelace-style/shoelace": "^2.19.1",
+        "css-loader": "^6.8.1",
+        "css-minimizer-webpack-plugin": "^5.0.1",
+        "html-webpack-plugin": "^5.6.0",
+        "resolve-url-loader": "^5.0.0",
+        "sanitize-html": "^2.12.1",
+        "sass": "^1.69.5",
+        "sass-loader": "^13.3.2",
+        "style-loader": "^3.3.3",
+        "terser-webpack-plugin": "^5.3.9",
+        "ts-loader": "^9.4.4",
+        "ts-transformer-keys": "^0.4.4",
+        "tslib": "^2.6.2",
+        "uglify-js": "^3.17.4"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.5 ",
+        "@types/sanitize-html": "^2.11.0",
+        "copy-webpack-plugin": "^11.0.0",
+        "dotenv": "^16.4.7",
+        "ts-node": "^10.9.1",
+        "tsconfig-paths-webpack-plugin": "^4.1.0",
+        "typescript": "^5.1.6",
+        "url-loader": "^4.1.1",
+        "webpack": "^5.75.0",
+        "webpack-bundle-analyzer": "^4.10.1",
+        "webpack-cli": "^5.1.4",
+        "webpack-node-externals": "^3.0.0"
+    }
+}

@@ -1,0 +1,145 @@
+// Import RWS grid if needed
+@import '@rws-mixins';
+
+// Grid System - Using RWS Grid
+@mixin flex-container($direction: row, $justify: flex-start, $align: stretch) {
+    @include rws-gr;
+    flex-direction: $direction;
+    @include rws-gr-align($justify, $align);
+  }
+  
+  // Legacy grid container adapted to use RWS grid
+  @mixin grid-container($columns: 1, $gap: 20px) {
+    @include rws-gr;
+    @include rws-gr-gap($gap);
+    
+    > * {
+      @include rws-gr-col(calc(12 / #{$columns}));
+    }
+  }
+  
+  // Responsive grid using RWS breakpoints
+  @mixin responsive-grid($min-width: 250px) {
+    @include rws-gr;
+    @include rws-gr-gap(20px);
+    
+    > * {
+      // Default for large screens
+      @include rws-gr-col(3, 4, 6, 12);
+    }
+  }
+  
+  // Card Styles (unchanged)
+  @mixin card($padding: 20px, $radius: 8px) {
+    background: white;
+    padding: $padding;
+    border-radius: $radius;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+  
+  // Code Block (unchanged)
+  @mixin code-block {
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Fira Code', monospace;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  
+  // Navigation with RWS grid
+  @mixin sidebar-nav($width: 250px, $bg-color: #2c3e50) {
+    @include rws-gr;
+    background: $bg-color;
+    padding: 20px 0;
+    
+    // Use RWS column system for responsive behavior
+    @include rws-gr-col(
+      calc(#{$width} * 12 / 100vw), // Calculate columns for large screens
+      3,  // md breakpoint
+      4,  // sm breakpoint
+      12  // xs breakpoint
+    );
+  }
+  
+  // Typography (unchanged)
+  @mixin section-title {
+    color: #2c3e50;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+  }
+  
+  // Layout with RWS grid
+  @mixin content-container($max-width: 800px) {
+    @include rws-gr;
+    @include rws-gr-center;
+    width: 100%;
+    max-width: $max-width;
+  }
+  
+  // List Styles (unchanged)
+  @mixin clean-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  @mixin arrow-list-item {
+    margin: 10px 0;
+    padding-left: 20px;
+    position: relative;
+    
+    &:before {
+      content: "→";
+      position: absolute;
+      left: 0;
+      color: #3498db;
+    }
+  }
+  
+  // Additional helper mixins for RWS grid integration
+  
+  // Centered content with gap
+  @mixin centered-content-grid($gap: 20px) {
+    @include rws-gr;
+    @include rws-gr-gap($gap);
+    @include rws-gr-center;
+    @include rws-gr-align(center, center);
+  }
+  
+  // Equal width columns
+  @mixin equal-columns($count: 2, $gap: 20px) {
+    @include rws-gr;
+    @include rws-gr-gap($gap);
+    
+    > * {
+      @include rws-gr-col(
+        calc(12 / #{$count}),  // Large screens
+        6,                     // Medium screens (2 columns)
+        12                     // Small screens (1 column)
+      );
+    }
+  }
+  
+  // Example usage:
+  /*
+  .layout-example {
+    @include centered-content-grid(30px);
+    
+    .card {
+      @include card;
+      @include rws-gr-col(4, 6, 12);
+    }
+    
+    .sidebar {
+      @include sidebar-nav;
+    }
+    
+    .content {
+      @include content-container;
+    }
+  }
+  */

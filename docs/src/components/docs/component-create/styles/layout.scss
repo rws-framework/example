@@ -1,0 +1,97 @@
+@import '/styles/_design';
+
+.docs-container {
+  @include flex-container(row, flex-start, stretch);
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  
+  .docs-nav {
+    @include sidebar-nav;
+    
+    ul {
+      @include clean-list;
+      
+      li {
+        button {
+          width: 100%;
+          padding: 12px 24px;
+          border: none;
+          background: none;
+          color: #fff;
+          text-align: left;
+          cursor: pointer;
+          font-size: 16px;
+          transition: background-color 0.3s ease-in-out;
+          
+          &:hover {
+            background: #34495e;
+          }
+          
+          &.active {
+            background: #3498db;
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+  
+  .docs-content {
+    flex: 1;
+    padding: 40px;
+    background: #f8f9fa;
+    
+    .docs-section {
+      @include content-container;
+      
+      h1 {
+        @include section-title;
+      }
+      
+      h2 {
+        color: #34495e;
+        margin: 25px 0 15px;
+      }
+      
+      .code-block {
+        @include code-block;
+      }
+      
+      .decorator-list {
+        @include responsive-grid(250px);
+        margin-top: 20px;
+        
+        .decorator-item {
+          @include card;
+          
+          h3 {
+            color: #3498db;
+            margin: 0 0 10px;
+          }
+          
+          code {
+            display: block;
+            background: #f7f9fc;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+          }
+        }
+      }
+      
+      .template-directives,
+      .styling-tips {
+        @include card;
+        margin-top: 20px;
+        
+        ul {
+          @include clean-list;
+          
+          li {
+            @include arrow-list-item;
+          }
+        }
+      }
+    }
+  }
+}

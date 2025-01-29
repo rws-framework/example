@@ -1,0 +1,14 @@
+{
+  "components": [
+    "line-splitter",
+    "users-login-form",
+    "rws-modal",
+    "rws-table",
+    "users-create-form",
+    "page-users",
+    "my-component",
+    "the-loader",
+    "rws-progress",
+    "rws-uploader"
+  ]
+}

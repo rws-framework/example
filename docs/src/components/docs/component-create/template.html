@@ -1,0 +1,129 @@
+<div class="docs-container">
+    <nav class="docs-nav">
+        <ul>
+            <li>
+                <button class="${x => x.activeSection === 'overview' ? 'active' : ''}" 
+                        @click="${x => x.switchSection('overview')}">
+                    Przegląd
+                </button>
+            </li>
+            <li>
+                <button class="${x => x.activeSection === 'structure' ? 'active' : ''}" 
+                        @click="${x => x.switchSection('structure')}">
+                    Struktura
+                </button>
+            </li>
+            <li>
+                <button class="${x => x.activeSection === 'decorators' ? 'active' : ''}" 
+                        @click="${x => x.switchSection('decorators')}">
+                    Dekoratory
+                </button>
+            </li>
+            <li>
+                <button class="${x => x.activeSection === 'templating' ? 'active' : ''}" 
+                        @click="${x => x.switchSection('templating')}">
+                    Templating
+                </button>
+            </li>
+            <li>
+                <button class="${x => x.activeSection === 'styling' ? 'active' : ''}" 
+                        @click="${x => x.switchSection('styling')}">
+                    Style
+                </button>
+            </li>
+        </ul>
+    </nav>
+
+    <main class="docs-content">
+        ${T.when(x => x.activeSection === 'overview', T.html`
+            <section class="docs-section">
+                <h1>RWS Components - Przegląd</h1>
+                <p>RWS to framework do tworzenia komponentów webowych oparty na FAST. Główne cechy:</p>
+                <ul>
+                    <li>Webkomponenty z TypeScript</li>
+                    <li>Reaktywność przez dekoratory</li>
+                    <li>Scopowane style SCSS</li>
+                    <li>System templatek oparty na FAST</li>
+                </ul>
+            </section>
+        `)}
+
+        ${T.when(x => x.activeSection === 'structure', T.html`
+            <section class="docs-section">
+                <h1>Struktura Komponentu</h1>
+                <p>Każdy komponent RWS składa się z trzech głównych plików:</p>
+                <pre class="code-block">
+src/components/my-component/
+├── styles/
+│   └── layout.scss    # Style komponentu
+├── template.html      # Template HTML
+└── component.ts      # Logika komponentu
+                </pre>
+                <h2>Podstawowy Komponent</h2>
+                <pre class="code-block">
+${x => x.getCodeExample('basicComponent')}
+                </pre>
+            </section>
+        `)}
+
+        ${T.when(x => x.activeSection === 'decorators', T.html`
+            <section class="docs-section">
+                <h1>Dekoratory RWS</h1>
+                <div class="decorator-list">
+                    <div class="decorator-item">
+                        <h3>@RWSView</h3>
+                        <p>Definiuje nazwę tagu HTML dla komponentu</p>
+                        <code>@RWSView('my-component')</code>
+                    </div>
+                    <div class="decorator-item">
+                        <h3>@observable</h3>
+                        <p>Tworzy reaktywną właściwość</p>
+                        <code>@observable title: string = 'Hello';</code>
+                    </div>
+                    <div class="decorator-item">
+                        <h3>@attr</h3>
+                        <p>Definiuje atrybut HTML</p>
+                        <code>@attr size: string = 'medium';</code>
+                    </div>
+                </div>
+            </section>
+        `)}
+
+        ${T.when(x => x.activeSection === 'templating', T.html`
+            <section class="docs-section">
+                <h1>System Templatek</h1>
+                <p>RWS używa dyrektyw T.* do renderowania warunkowego i list:</p>
+                <pre class="code-block">
+${x => x.getCodeExample('templateExample')}
+                </pre>
+                <div class="template-directives">
+                    <h2>Główne dyrektywy:</h2>
+                    <ul>
+                        <li><code>T.when()</code> - Renderowanie warunkowe</li>
+                        <li><code>T.repeat()</code> - Renderowanie list</li>
+                        <li><code>${x => x.property}</code> - Bindowanie właściwości</li>
+                    </ul>
+                </div>
+            </section>
+        `)}
+
+        ${T.when(x => x.activeSection === 'styling', T.html`
+            <section class="docs-section">
+                <h1>Stylowanie w RWS</h1>
+                <p>Style są automatycznie scopowane do komponentu:</p>
+                <pre class="code-block">
+${x => x.getCodeExample('styleExample')}
+                </pre>
+                <div class="styling-tips">
+                    <h2>Dobre praktyki:</h2>
+                    <ul>
+                        <li>Używaj SCSS dla lepszej organizacji</li>
+                        <li>Style są automatycznie scopowane</li>
+                        <li>Możesz używać zmiennych CSS</li>
+                        <li>Zagnieżdżaj selektory dla lepszej czytelności</li>
+                    </ul>
+                </div>
+            </section>
+        `)}
+    </main>
+</div>

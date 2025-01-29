@@ -3,14 +3,13 @@
     "private": true,
     "version": "1.0.0",
     "description": "",
-    "scripts": {
-        "postinstall": "cd frontend && yarn build && cd ../backend && yarn rws init && yarn build"
-    },
+    "scripts": {},
     "author": "papablack",
     "license": "ISC",
     "workspaces": [
         "frontend",
-        "backend"
+        "backend",
+        "docs"
     ],
     "dependencies": {
         "global": "^4.4.0",
