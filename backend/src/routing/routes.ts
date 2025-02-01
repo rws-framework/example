@@ -1,4 +1,4 @@
-import { RWSHTTPRoutingEntry } from '@rws-framework/server/src/routing/routes';
+import {  IPrefixedHTTProutes } from '@rws-framework/server/src/routing/routes';
 import { homeRoutes } from './actions/homeActions';
 import { userRoutes } from './actions/userActions';
 
@@ -15,4 +15,4 @@ export default [
         routes: userRoutes
     },
 
-] as RWSHTTPRoutingEntry[];
+] as IPrefixedHTTProutes[];

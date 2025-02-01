@@ -1,26 +1,25 @@
-import { RWSannotations, RWSModel } from '@rws-framework/server';
+import { TrackType, InverseRelation, RWSModel } from '@rws-framework/db';
 
 import IUser from './interfaces/IUser';
 import 'reflect-metadata';
 
 import ApiKey from './ApiKey';
 import IApiKey from './interfaces/IApiKey';
-const { RWSTrackType, InverseRelation } = RWSannotations.modelAnnotations;
 
 class User extends RWSModel<User> implements IUser {
-    @RWSTrackType(String)
+    @TrackType(String)
     username: string;
 
-    @RWSTrackType(String)
+    @TrackType(String)
     passwd: string;
 
-    @RWSTrackType(Boolean)
+    @TrackType(Boolean)
     active: boolean;
 
-    @RWSTrackType(Date, { required: true })
+    @TrackType(Date, { required: true })
     created_at: Date;
   
-    @RWSTrackType(Date)
+    @TrackType(Date)
     updated_at: Date;
 
     @InverseRelation(() => ApiKey, () => User)

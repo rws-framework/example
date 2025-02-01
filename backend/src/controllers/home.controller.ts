@@ -1,9 +1,7 @@
-import { AppConfigService } from '@rws-framework/server';
 import { AuthService } from '../services/AuthService';
-import { Body, Get } from '@nestjs/common';
+import { Body } from '@nestjs/common';
 import { IUserLoginApiResponse } from './response-types/IHomeApiResponse'
-import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
-import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import { RWSRoute, RWSController } from '@rws-framework/server/nest';
 import IUser from '../models/interfaces/IUser';
 import User from '../models/User';
 

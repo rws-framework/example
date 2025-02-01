@@ -229,29 +229,28 @@ export const models = [ User, ApiKey];
 ## Example user model
 
 ```typescript
-    import { RWSannotations, RWSModel } from '@rws-framework/server';
+import { TrackType, InverseRelation, RWSModel } from '@rws-framework/db';
 
 import IUser from './interfaces/IUser';
 import 'reflect-metadata';
 
 import ApiKey from './ApiKey';
 import IApiKey from './interfaces/IApiKey';
-const { RWSTrackType, InverseRelation } = RWSannotations.modelAnnotations;
 
 class User extends RWSModel<User> implements IUser {
-    @RWSTrackType(String)
+    @TrackType(String)
     username: string;
 
-    @RWSTrackType(String) // Can also handle Object and Number
+    @TrackType(String) // Can also handle Object and Number
     passwd: string;
 
-    @RWSTrackType(Boolean)
+    @TrackType(Boolean)
     active: boolean;
 
-    @RWSTrackType(Date, { required: true })
+    @TrackType(Date, { required: true })
     created_at: Date;
   
-    @RWSTrackType(Date)
+    @TrackType(Date)
     updated_at: Date;
 
     /**
@@ -291,12 +290,11 @@ export default User;
 
 ***Basic many to one relation***
 ```typescript
-import { RWSannotations, RWSModel } from '@rws-framework/server';
+import { TrackType, Relation, RWSModel } from '@rws-framework/db';
 
 import 'reflect-metadata';
 import User from './User';
 import IApiKey from './interfaces/IApiKey';
-const { RWSTrackType, Relation } = RWSannotations.modelAnnotations;
 
 class ApiKey extends RWSModel<ApiKey> implements IApiKey {
     static _RELATIONS = {
@@ -306,13 +304,13 @@ class ApiKey extends RWSModel<ApiKey> implements IApiKey {
     @Relation(() => User, true) // second attribute is required = false
     user: User;
 
-    @RWSTrackType(Object)
+    @TrackType(Object)
     keyval: string;
 
-    @RWSTrackType(Date, { required: true })
+    @TrackType(Date, { required: true })
     created_at: Date;
   
-    @RWSTrackType(Date)
+    @TrackType(Date)
     updated_at: Date;
 
     static _collection = 'api_keys';
@@ -335,7 +333,7 @@ export default ApiKey;
 
 ```typescript
 import 'reflect-metadata';
-import Model, { OpModelType } from '../_model';
+import { RWSModel as Model, OpModelType } from '@rws-framework/db';
 
 interface IRelationOpts {
     required?: boolean
@@ -376,7 +374,7 @@ export {IRelationOpts};
 ***Inverse relation decorator*** (one-to-many)
 ```typescript
 import 'reflect-metadata';
-import Model, { OpModelType } from '../_model';
+import { RWSModel as Model, OpModelType } from '@rws-framework/db';
 
 interface InverseRelationOpts{
     key: string,

@@ -20,8 +20,8 @@ function config(): IAppModuleOpts
             ssl: false,
             auth: false
         },
-        user_class: null,
-        user_models: models,
+        
+        db_models: models,
         mongo_url: configHelper.get('DATABASE_URL'),
         mongo_db: configHelper.get('MONGODB_DB'),
         port: parseInt(configHelper.get('PORT')) || 3000,        
@@ -32,9 +32,7 @@ function config(): IAppModuleOpts
         secret_key: configHelper.get('JWT_SECRET'),    
         jwt_expiration_days: parseInt(configHelper.get('JWT_EXPIRATION_DAYS')),
         ssl_cert: null,
-        ssl_key: null,            
-        ws_routes: {        
-        },
+        ssl_key: null,  
         http_routes: httpRoutes,
     };
 }

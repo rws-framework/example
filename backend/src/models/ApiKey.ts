@@ -1,9 +1,7 @@
-import { RWSannotations, RWSModel } from '@rws-framework/server';
-
 import 'reflect-metadata';
 import User from './User';
 import IApiKey from './interfaces/IApiKey';
-const { RWSTrackType, Relation } = RWSannotations.modelAnnotations;
+import { TrackType, Relation, RWSModel } from '@rws-framework/db';
 
 class ApiKey extends RWSModel<ApiKey> implements IApiKey {
     static _RELATIONS = {
@@ -13,13 +11,13 @@ class ApiKey extends RWSModel<ApiKey> implements IApiKey {
     @Relation(() => User, true)
     user: User;
 
-    @RWSTrackType(Object)
+    @TrackType(Object)
     keyval: string;
 
-    @RWSTrackType(Date, { required: true })
+    @TrackType(Date, { required: true })
     created_at: Date;
   
-    @RWSTrackType(Date)
+    @TrackType(Date)
     updated_at: Date;
 
     static _collection = 'api_keys';

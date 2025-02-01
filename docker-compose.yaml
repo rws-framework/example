@@ -1,0 +1,36 @@
+version: '3.3'
+
+services:
+  mongo_dev_rwsexample:
+    env_file:
+      - ./.env    
+    networks:
+      - main
+    image: mongo:7.0
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "${MONGODB_PORT:-27017}"]
+    ports:      
+       - "${OUT_MONGODB_PORT:-27017}:${OUT_MONGODB_PORT:-27017}"
+    volumes:
+      - mongodb_dev_rwsexample:/data/db
+    healthcheck:
+      test: |
+        mongosh --port ${OUT_MONGODB_PORT:-27017} --eval "
+          if (!rs.isMaster().ismaster) {
+            rs.initiate({
+              _id: 'rs0',
+              members: [{ _id: 0, host: '${MONGODB_RS_HOST:-mongo_dev_rwsexample}:${MONGODB_PORT:-27017}' }]
+            });
+          }
+        "
+      interval: 10s
+      timeout: 5s    
+      retries: 3  
+
+volumes:
+  rwsexample_dev_var_cache: ~
+  #vendor: ~
+  mongodb_dev_rwsexample: ~
+
+networks:
+  main: 
+    external: true

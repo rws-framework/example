@@ -1,5 +1,3 @@
-import { AppConfigService } from '@rws-framework/server';
-
 import { IUserCreateApiPayload, IUserCreateApiResponse, IUserDeleteApiResponse, IUserListApiResponse, IUserCreateKeyApiResponse } from './response-types/IUserApiResponse';
 import { Body } from '@nestjs/common';
 import IUser from '../models/interfaces/IUser';
@@ -12,8 +10,7 @@ import { v4 as uuid } from 'uuid';
 import User from '../models/User';
 
 
-import { RWSRoute } from '@rws-framework/server/nest/decorators/RWSRoute';
-import { RWSController } from '@rws-framework/server/nest/decorators/RWSController';
+import { RWSRoute, RWSController } from '@rws-framework/server/nest';
 import { Auth, AuthUser } from '../guards/auth.guard';
 
 @RWSController('user')

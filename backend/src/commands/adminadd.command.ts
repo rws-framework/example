@@ -18,14 +18,9 @@ import User from '../models/User';
 @RWSCommand({name: 'admin-add', description: 'Systems init command.'})
 export class AdminStartCommand extends RWSBaseCommand {
   constructor(
-    protected readonly utilsService: UtilsService,
-    protected readonly consoleService: ConsoleService,
-    protected readonly configService: ConfigService,
-    protected readonly processService: ProcessService,          
-    protected readonly dbService: DBService,
     protected readonly authService: AuthService,
   ) {    
-    super(utilsService, consoleService, configService, processService, dbService);    
+    super();    
   }    
 
   async run(
