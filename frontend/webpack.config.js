@@ -12,6 +12,8 @@ let envVars = dotenv.config({
 
 const devMode = parseInt(process.env.DEV) === 1;
 
+console.log(path.resolve(__dirname, '..', 'node_modules', '@rws-framework', 'exec', 'build'))
+
 module.exports = RWSWebpackWrapper({
   dev: devMode,
   hot: false,
@@ -24,6 +26,9 @@ module.exports = RWSWebpackWrapper({
   outputFileName: 'rws.client.js',
   parted: false,
   partedDirUrlPrefix: '/js',
+  aliases: {
+    '@': path.resolve(__dirname, '..', 'node_modules', '@rws-framework', 'exec', 'build')
+  },
   copyAssets: {
     './public/css/' : [      
       './src/styles/compiled/main.css'

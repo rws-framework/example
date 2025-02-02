@@ -16,7 +16,12 @@
       "DOM",
       "ESNext",
       "WebWorker"
-    ]
+    ],
+    "paths": {
+      "@": [
+        "../node_modules/@rws-framework/exec/build"
+      ]
+    }
   },
   "include": [
     "src/index.ts",

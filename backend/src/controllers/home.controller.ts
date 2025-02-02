@@ -5,10 +5,6 @@ import { RWSRoute, RWSController } from '@rws-framework/server/nest';
 import IUser from '../models/interfaces/IUser';
 import User from '../models/User';
 
-type ITalkApiResponse = {
-    success: boolean
-    data: { wsId: string, response: string, error?: Error | any }
-};
 
 @RWSController('home')
 export class HomeController {   
@@ -32,7 +28,7 @@ export class HomeController {
             // Authenticate user
             const authResult = await this.authService.authenticate(body.username, body.passwd);
             
-            if (!authResult.success) {
+            if (!authResult.success) {                
                 return {
                     success: false,
                     data: null,
@@ -96,42 +92,41 @@ export class HomeController {
     
     @RWSRoute('home.check')    
     async authCheck( @Body() body: { token: string }): Promise<IUserLoginApiResponse>
-    {      
-            
-            try {
-                if (!body.token) {
-                    return {
-                        success: false,
-                        data: null,
-                        error: 'Token is required'
-                    };
-                }
-        
-                const authResult = await this.authService.verifyToken(body.token);
-                
-                if (!authResult) {
-                    return {
-                        success: false,
-                        data: null,
-                        error: 'Invalid credentials'
-                    };
-                }
-
-                const user: IUser = await this.authService.getUserFromToken(body.token);
-    
-                return {
-                    success: true,
-                    data: {
-                        user: user,
-                        token: body.token
-                    }
-                };
-            } catch (error: Error | any) {
+    {                  
+        try {
+            if (!body.token) {
                 return {
                     success: false,
                     data: null,
-                    error: error.message || 'An error occurred during login'
+                    error: 'Token is required'
                 };
             }
+    
+            const authResult = await this.authService.verifyToken(body.token);
+            
+            if (!authResult) {
+                return {
+                    success: false,
+                    data: null,
+                    error: 'Invalid credentials'
+                };
+            }
+
+            const user: IUser = await this.authService.getUserFromToken(body.token);
+
+            return {
+                success: true,
+                data: {
+                    user: user,
+                    token: body.token
+                }
+            };
+        } catch (error: Error | any) {
+            return {
+                success: false,
+                data: null,
+                error: error.message || 'An error occurred during login'
+            };
+        }
     }    
 }
