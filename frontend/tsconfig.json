@@ -17,10 +17,7 @@
       "ESNext",
       "WebWorker"
     ],
-    "paths": {
-      "@": [
-        "../node_modules/@rws-framework/exec/build"
-      ]
+    "paths": {      
     }
   },
   "include": [

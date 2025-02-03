@@ -3,17 +3,22 @@ import { IManagerConfig } from '@rws-framework/manager';
 export default function config(): IManagerConfig
 {
     return {
-        front: {
-            entrypoint: './frontend',
-        },
-        back: {
-            entrypoint: './backend',
-            customOutputFile: './build/rws.server.js',            
-
-        },
-        cli: {
-            entrypoint: './backend',
-            customOutputFile: './build/cli.server.js'
+        dev: true,
+        build: {
+            front: {
+                workspaceDir: './frontend',
+                outputDir: './public/js',
+                publicDir: './public'           
+            },
+            back: {
+                workspaceDir: './backend',
+                outputFileName: 'rws.server.js',
+                publicDir: '../frontend/public'
+            },
+            cli: {
+                workspaceDir: './backend',
+                outputFileName: './build/cli.server.js'
+            }
         }
     }
 };

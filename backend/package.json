@@ -23,7 +23,7 @@
         "@mongodb-js/zstd": "1.2.0",  
         "@rws-framework/ai-tools": "^1.0.4",
         "@rws-framework/nest-interconnectors": "^1.3.3",
-        "@rws-framework/server": "^3.8.6",
+        "@rws-framework/server": "^3.8.7",
         "crypto": "^1.0.1",
         "dotenv": "^16.4.5",
         "jsonwebtoken": "^9.0.2",
