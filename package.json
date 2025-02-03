@@ -12,7 +12,7 @@
         "docs"
     ],
     "dependencies": {
-        "@rws-framework/manager": "^2.0.0",
+        "@rws-framework/manager": "^2.2.0",
         "@types/json5": "^2.2.0",
         "concurrently": "^9.1.2",
         "global": "^4.4.0",
