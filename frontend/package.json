@@ -3,14 +3,6 @@
     "version": "1.0.0",
     "description": "",
     "main": "src/index.ts",
-    "scripts": {
-        "watch:webpack": "webpack --config webpack.config.js --watch",
-        "build:webpack": "webpack --config webpack.config.js",
-        "watch:vite": "bunx --bun vite build --config vite.config.ts --watch",
-        "build:vite": "bunx --bun vite build --config vite.config.ts",
-        "test": "ts-mocha -r tsconfig-paths/register --config ./tests/tsconfig.json 'tests/**/*.test.ts'",
-        "docs": "typedoc --tsconfig ./tsconfig.json"
-    },
     "author": "papablack",
     "license": "ISC",
     "dependencies": {

@@ -3,17 +3,6 @@
     "private": true,
     "version": "1.0.0",
     "description": "",
-    "scripts": {
-        "dev": "npm-run-all --parallel watch:transpile watch:run",
-        "watch:run": "nodemon \"./build/rws.server.js\" --watch \"./build\"",
-        "watch:transpile": "webpack --config webpack.config.js --watch",
-        "build": "webpack --config webpack.config.js --output-path ./build",
-        "cli": "webpack --config cli.webpack.config.js --output-path ./build && node build/rws.cli.js",
-        "server": "node build/rws.server.js",
-        "hello": "rws hello user=$USER",
-        "test": "ts-mocha -r tsconfig-paths/register --config tests/tsconfig.json 'tests/**/*.test.ts'",
-        "postinstall": "node postinstall.js"
-    },
     "main": "src/index.ts",
     "author": "papablack",
     "license": "ISC",
