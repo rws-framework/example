@@ -1,6 +1,4 @@
 import { RWSViewComponent, RWSView, observable } from '@rws-framework/client';
-import { IUser } from '../../backendImport';
-import { IUserCreateApiPayload, IUserCreateApiResponse } from 'backend/src/controllers/response-types/IUserApiResponse';
 
 export interface IFlexTableColumn {
     key: string;

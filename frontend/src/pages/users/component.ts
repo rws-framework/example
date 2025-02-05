@@ -2,8 +2,7 @@ import { RWSViewComponent, RWSView, observable, ApiService } from '@rws-framewor
 import type { IUser } from '../../backendImport';
 import moment from 'moment';
 import { UsersForm } from '../../components/user-form/component';
-import { IUserCreateApiResponse, IUserCreateKeyApiResponse, IUserListApiResponse } from '../../../../backend/src/controllers/response-types/IUserApiResponse';
-import IApiKey from 'backend/src/models/interfaces/IApiKey';
+import { IUserCreateKeyApiResponse, IUserListApiResponse, IApiKey } from '../../../../backend/src/pkgExport';
 
 UsersForm;
 

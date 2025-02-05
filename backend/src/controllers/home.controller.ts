@@ -15,7 +15,7 @@ export class HomeController {
         @Body() body: { username: string, passwd: string }
     ): Promise<IUserLoginApiResponse> {
         
-        try {
+        try {            
             // Validate input
             if (!body.username || !body.passwd) {
                 return {

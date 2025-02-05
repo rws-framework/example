@@ -13,6 +13,5 @@ export default [
         prefix: '/api/users',
         controllerName: 'user',
         routes: userRoutes
-    },
-
+    }
 ] as IPrefixedHTTProutes[];

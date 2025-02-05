@@ -1,3 +1,5 @@
+import 'reflect-metadata';
+
 import { config } from './config/config'
 import { RWSConfigInjector, RWSBootstrap } from "@rws-framework/server/nest";
 

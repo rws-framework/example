@@ -11,7 +11,7 @@ import '@shoelace-style/shoelace/dist/shoelace.js';
 
 import routes from './routing/routes';
 import notifierMethod from './_notifier';
-import { setBasePath } from '@shoelace-style/shoelace';
+import { setBasePath } from '@shoelace-style/shoelace/dist/utilities/base-path';
 
 async function initializeApp() {
     const theClient = RWSContainer().get(RWSClient);
@@ -20,10 +20,7 @@ async function initializeApp() {
 
     theClient.setNotifier(notifierMethod);
     theClient.addPlugin<BrowserRouterOpts>(RWSBrowserRouter);
-    theClient.addPlugin<WSOptions>([RWSWebsocketsPlugin, {
-        enabled: true,
-        auto_notify: true
-    }]);
+    theClient.addPlugin<WSOptions>(RWSWebsocketsPlugin);
 
     theClient.assignClientToBrowser();             
 

@@ -1,6 +1,5 @@
 import { RWSViewComponent, RWSView, observable, attr } from '@rws-framework/client';
-import { IUser } from '../../backendImport';
-import { IUserCreateApiPayload, IUserCreateApiResponse } from 'backend/src/controllers/response-types/IUserApiResponse';
+import { IUser, IUserCreateApiPayload, IUserCreateApiResponse } from '../../backendImport';
 
 @RWSView('users-create-form')
 class UsersForm extends RWSViewComponent {      

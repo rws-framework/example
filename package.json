@@ -12,8 +12,8 @@
         "docs"
     ],
     "dependencies": {
-        "@rws-framework/manager": "^2.2.0",
-        "@types/json5": "^2.2.0",
+        "@rws-framework/manager": "^2.2.5",
+        "@rws-framework/nest-interconnectors": "^1.3.4",
         "concurrently": "^9.1.2",
         "global": "^4.4.0",
         "json5": "^2.2.3",

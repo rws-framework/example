@@ -20,7 +20,7 @@ export class AdminStartCommand extends RWSBaseCommand {
   constructor(
     protected readonly authService: AuthService,
   ) {    
-    super();    
+    super();
   }    
 
   async run(
@@ -29,7 +29,6 @@ export class AdminStartCommand extends RWSBaseCommand {
   ): Promise<void> {
     const [login, pass] = passedParams;
     this.consoleService.log(this.consoleService.color().green(`[RWS] adding admin (${login}/${pass})... `));    
-
     const exUser: User = await User.findOneBy({ conditions: { username: login } });
     
     if(exUser){

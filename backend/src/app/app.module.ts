@@ -14,6 +14,7 @@ import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { NotFoundExceptionFilter } from '../filters/not-found.filter';
 import { SerializeInterceptor } from '../interceptors/serialize.interceptor';
 import { NestModuleData } from '@rws-framework/server/exec/src/application/cli.module';
+import { AdminStartCommand } from '../commands/adminadd.command';
 
 
 @Module({})
@@ -29,8 +30,8 @@ export class TheAppModule {
         UserController
       ],
       providers: [
-        AuthService,
-        ConfigService,
+        AuthService, 
+        AdminStartCommand,   
         UtilsService,
         RWSFillService,
         WebsocketManagerService,

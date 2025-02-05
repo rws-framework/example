@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "target": "ES2018",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "strictNullChecks": false,
+    "allowSyntheticDefaultImports": true,
+    "declaration": false,
+    "baseUrl": ".",
+    "paths": {}
+  },
+  "include": [
+    "frontend/src",
+    "node_modules/@rws-framework/browser-router",
+    "node_modules/@rws-framework/client",
+    "node_modules/@rws-framework/nest-interconnectors",
+    "node_modules/@rws-framework/server",
+    "node_modules/@rws-framework/db",
+    "backend/src",
+    "node_modules/@rws-framework/ai-tools"
+  ],
+  "exclude": []
+}
